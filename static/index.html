@@ -990,6 +990,68 @@
                 font-weight: 600;
                 color: var(--rv-text);
             }
+
+            /* ── XML viewer (Tree/Table/Code) ────────────────────────── */
+            .xml-view {
+                margin-bottom: 16px;
+            }
+            .xml-table-wrap {
+                border: 1px solid var(--rv-border);
+                border-radius: 6px;
+                overflow: auto;
+            }
+            .xml-table {
+                border-collapse: collapse;
+                width: 100%;
+            }
+            .xml-table th,
+            .xml-table td {
+                padding: 6px 13px;
+                border: 1px solid var(--rv-border);
+                font-size: 13px;
+                text-align: left;
+            }
+            .xml-table th {
+                background: var(--rv-bg-secondary);
+                font-weight: 600;
+            }
+            .xml-tree {
+                border: 1px solid var(--rv-border);
+                border-radius: 6px;
+                background: var(--rv-bg);
+                padding: 8px 12px;
+                font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+                    Consolas, monospace;
+                font-size: 13px;
+            }
+            .xml-tree ul,
+            .xml-children {
+                list-style: none;
+                margin: 2px 0 2px;
+                padding-left: 18px;
+                border-left: 1px dotted var(--rv-border);
+            }
+            .xml-node {
+                margin: 2px 0;
+            }
+            .xml-node-line {
+                padding: 2px 4px;
+                border-radius: 4px;
+            }
+            .xml-node-line:hover {
+                background: var(--rv-bg-hover);
+            }
+            .xml-attr {
+                color: var(--rv-link);
+                margin-right: 6px;
+            }
+            .xml-text {
+                color: var(--rv-text-secondary);
+                margin-left: 6px;
+            }
+            .xml-tree-empty {
+                opacity: 0.8;
+            }
             .csv-table {
                 border: 1px solid var(--rv-border);
                 border-radius: 6px;
@@ -2221,6 +2283,7 @@
                     { as: "txt", label: "Plain text" },
                     { as: "md", label: "Markdown" },
                     { as: "csv", label: "CSV table" },
+                    { as: "xml", label: "XML viewer" },
                 ];
                 items.forEach(function (item) {
                     var btn = document.createElement("button");
@@ -3765,6 +3828,8 @@
                     } else {
                         bindRowLinkClicks();
                     }
+                } else if (data.isXML) {
+                    renderXMLViewer(path, data);
                 } else {
                     // Strip ?view param for non-toggle files
                     if (getViewParam()) setViewParam(null);
@@ -4085,6 +4150,368 @@
                     highlighted += esc(r.target.substring(last));
                     return { target: r.target, highlighted: highlighted };
                 });
+            }
+
+            /* ── XML viewer ──────────────────────────────────────────── */
+            // Tree/Table/Code views for XML files, parsed client-side with
+            // DOMParser (no dependencies). Filter inputs reuse the
+            // .csv-filter-* bar styles.
+
+            function xmlGlobToRegExp(glob) {
+                var escaped = glob.replace(/[.+^${}()|[\]\\]/g, "\\$&");
+                return new RegExp(
+                    "^" + escaped.replace(/\*/g, ".*").replace(/\?/g, ".") + "$",
+                    "i",
+                );
+            }
+
+            // xmlElementList flattens an XML document into entries with
+            // dot-paths (root.book[deployment order agnostic]), attributes
+            // and direct text content.
+            function xmlElementList(doc) {
+                var out = [];
+                function walk(el, parentPath) {
+                    if (el.nodeType !== 1) return;
+                    var tag = el.nodeName;
+                    var path = (parentPath ? parentPath + "." : "") + tag;
+                    var attrs = [];
+                    for (var i = 0; i < el.attributes.length; i++) {
+                        attrs.push({
+                            name: el.attributes[i].name,
+                            value: el.attributes[i].value,
+                        });
+                    }
+                    var text = "";
+                    for (var j = 0; j < el.childNodes.length; j++) {
+                        if (el.childNodes[j].nodeType === 3) {
+                            text += el.childNodes[j].nodeValue;
+                        }
+                    }
+                    out.push({
+                        el: el,
+                        tag: tag,
+                        path: path,
+                        index: out.length,
+                        attrs: attrs,
+                        text: text.replace(/\s+/g, " ").trim(),
+                    });
+                    for (var k = 0; k < el.children.length; k++) {
+                        walk(el.children[k], path);
+                    }
+                }
+                if (doc && doc.documentElement) {
+                    walk(doc.documentElement, "");
+                }
+                return out;
+            }
+
+            function xmlMatches(entry, filters, xpathSet) {
+                if (filters.tag) {
+                    try {
+                        if (!xmlGlobToRegExp(filters.tag).test(entry.tag)) return false;
+                    } catch (e) {
+                        return false;
+                    }
+                }
+                if (filters.attr) {
+                    // Syntax: attr=substring, or tag@attr=substring with an
+                    // optional tag glob.
+                    var parts = filters.attr.split("@");
+                    var tagPart = parts.length === 2 ? parts[0] : "";
+                    var attrSpec = parts[parts.length - 1];
+                    var eqIdx = attrSpec.indexOf("=");
+                    var attrName = (eqIdx >= 0 ? attrSpec.slice(0, eqIdx) : attrSpec).trim().toLowerCase();
+                    var attrValue = eqIdx >= 0 ? attrSpec.slice(eqIdx + 1).trim().toLowerCase() : null;
+                    if (tagPart) {
+                        try {
+                            if (!xmlGlobToRegExp(tagPart).test(entry.tag)) return false;
+                        } catch (e) {
+                            return false;
+                        }
+                    }
+                    var hit = false;
+                    for (var i = 0; i < entry.attrs.length; i++) {
+                        var a = entry.attrs[i];
+                        if (a.name.toLowerCase() === attrName) {
+                            hit =
+                                attrValue == null ||
+                                a.value.toLowerCase().indexOf(attrValue) !== -1;
+                            break;
+                        }
+                    }
+                    if (!hit) return false;
+                }
+                if (
+                    filters.text &&
+                    entry.text.toLowerCase().indexOf(filters.text.toLowerCase()) === -1
+                ) {
+                    return false;
+                }
+                if (xpathSet && !xpathSet.has(entry.el)) return false;
+                return true;
+            }
+
+            async function renderXMLViewer(path, data) {
+                var area = document.getElementById("content-area");
+                if (getViewParam() === "tree") setViewParam(null);
+                currentFileIsText = true;
+
+                var doc = null;
+                try {
+                    doc = new DOMParser().parseFromString(data.rawXML || "", "text/xml");
+                } catch (e) {
+                    doc = null;
+                }
+                var parseError = doc && doc.querySelector("parsererror");
+                var elements = parseError ? [] : xmlElementList(doc);
+
+                var filters = { tag: "", attr: "", text: "", xpath: "" };
+                var xpathSet = null;
+
+                // ── Filter bar ──
+                var bar = document.createElement("div");
+                bar.className = "csv-filter-bar";
+                function xmlInput(cls, placeholder) {
+                    var input = document.createElement("input");
+                    input.className = cls;
+                    input.placeholder = placeholder;
+                    input.type = "text";
+                    return input;
+                }
+                var tagInput = xmlInput("csv-filter-col", "tag (glob: book*, b?ok)");
+                var attrInput = xmlInput("csv-filter-op", "attr: name=value or tag@name=value");
+                var textInput = xmlInput("csv-filter-value", "text contains…");
+                var xpathInput = xmlInput("csv-filter-xpath", "XPath: //book[@genre='web']");
+                var invalidMsg = document.createElement("span");
+                invalidMsg.className = "csv-filter-invalid";
+                var clearBtn = document.createElement("button");
+                clearBtn.className = "csv-filter-clear";
+                clearBtn.textContent = "Clear";
+                var countEl = document.createElement("span");
+                countEl.className = "csv-filter-count";
+                bar.appendChild(tagInput);
+                bar.appendChild(attrInput);
+                bar.appendChild(textInput);
+                bar.appendChild(xpathInput);
+                bar.appendChild(invalidMsg);
+                bar.appendChild(clearBtn);
+                bar.appendChild(countEl);
+                tagInput.style.flex = "1 1 150px";
+                attrInput.style.flex = "1 1 190px";
+                textInput.style.flex = "1 1 130px";
+                xpathInput.style.flex = "1 1 190px";
+
+                clearBtn.onclick = function () {
+                    tagInput.value = "";
+                    attrInput.value = "";
+                    textInput.value = "";
+                    xpathInput.value = "";
+                    invalidMsg.textContent = "";
+                    counts();
+                };
+                [tagInput, attrInput, textInput, xpathInput].forEach(function (input) {
+                    input.addEventListener("keydown", function (e) {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            counts();
+                        }
+                    });
+                    input.addEventListener("input", counts);
+                    input.addEventListener("change", counts);
+                });
+
+                function matchedEntries() {
+                    filters.tag = tagInput.value.trim();
+                    filters.attr = attrInput.value.trim();
+                    filters.text = textInput.value.trim();
+                    filters.xpath = xpathInput.value.trim();
+                    invalidMsg.textContent = "";
+                    try {
+                        if (filters.tag) xmlGlobToRegExp(filters.tag);
+                    } catch (e) {
+                        invalidMsg.textContent = "invalid tag pattern";
+                        return [];
+                    }
+                    xpathSet = null;
+                    if (filters.xpath) {
+                        try {
+                            var snapshot = doc.evaluate(
+                                filters.xpath,
+                                doc,
+                                null,
+                                XPathResult.ORDERED_NODE_SNAPSHOT_TYPE,
+                                null,
+                            );
+                            xpathSet = new Set();
+                            for (var xi = 0; xi < snapshot.snapshotLength; xi++) {
+                                xpathSet.add(snapshot.snapshotItem(xi));
+                            }
+                        } catch (e) {
+                            invalidMsg.textContent = "invalid xpath";
+                            return [];
+                        }
+                    }
+                    var matches = [];
+                    for (var i = 0; i < elements.length; i++) {
+                        if (xmlMatches(elements[i], filters, xpathSet)) {
+                            matches.push(elements[i]);
+                        }
+                    }
+                    return matches;
+                }
+
+                var xmlMain = document.createElement("div");
+                xmlMain.className = "xml-view";
+                var viewWrap = document.createElement("div");
+                xmlMain.appendChild(bar);
+                xmlMain.appendChild(viewWrap);
+                area.innerHTML = "";
+                area.appendChild(xmlMain);
+
+                function renderXMLTableHTML(matches) {
+                    var html =
+                        '<table class="xml-table"><thead><tr><th>Path</th><th>Tag</th><th>Attributes</th><th>Text</th></tr></thead><tbody>';
+                    for (var i = 0; i < matches.length; i++) {
+                        var e = matches[i];
+                        var attrHTML = "";
+                        for (var j = 0; j < e.attrs.length; j++) {
+                            attrHTML += (j ? " " : "") + esc(e.attrs[j].name) + '="' + esc(e.attrs[j].value) + '"';
+                        }
+                        html += "<tr><td>" + esc(e.path) + "</td><td>" + esc(e.tag) + "</td><td>" + attrHTML + "</td><td>" + esc(e.text) + "</td></tr>";
+                    }
+                    html += "</tbody></table>";
+                    return html;
+                }
+
+                function treeHTML(matches) {
+                    var matched = new Set();
+                    matches.forEach(function (m) {
+                        matched.add(m.el);
+                    });
+                    function visible(el) {
+                        if (matched.has(el)) return true;
+                        for (var i = 0; i < el.children.length; i++) {
+                            if (visible(el.children[i])) return true;
+                        }
+                        return false;
+                    }
+                    function nodeHTML(el) {
+                        var html = '<li class="xml-node"><div class="xml-node-line">';
+                        for (var i = 0; i < el.attributes.length; i++) {
+                            var a = el.attributes[i];
+                            html += ' <span class="xml-attr">' + esc(a.name) + '="' + esc(a.value) + '"</span>';
+                        }
+                        var directText = "";
+                        for (var j = 0; j < el.childNodes.length; j++) {
+                            if (el.childNodes[j].nodeType === 3) {
+                                directText += el.childNodes[j].nodeValue;
+                            }
+                        }
+                        directText = directText.replace(/\s+/g, " ").trim();
+                        if (directText) {
+                            html += '<span class="xml-text">' + esc(directText) + "</span>";
+                        }
+                        html += "</div>";
+                        var kids = el.children;
+                        if (kids.length > 0 && visible(el)) {
+                            // Always wrap so ancestors of matches keep the
+                            // tree indentation; only visible children enter.
+                            html += '<ul class="xml-children">';
+                            for (var k = 0; k < kids.length; k++) {
+                                if (visible(kids[k])) {
+                                    html += nodeHTML(kids[k]);
+                                }
+                            }
+                            html += "</ul>";
+                        }
+                        html += "</li>";
+                        return html;
+                    }
+                    if (!doc || !doc.documentElement) {
+                        return '<div class="xml-tree-empty">No XML document</div>';
+                    }
+                    if (!visible(doc.documentElement)) {
+                        return '<div class="xml-tree-empty">No matching elements</div>';
+                    }
+                    return '<div class="xml-tree">' + nodeHTML(doc.documentElement) + "</div>";
+                }
+
+                function counts() {
+                    var matches = matchedEntries();
+                    var anyFilter =
+                        filters.tag || filters.attr || filters.text || filters.xpath;
+                    if (anyFilter) {
+                        countEl.textContent =
+                            "Showing " + matches.length + " of " + elements.length + " elements";
+                        countEl.style.display = "";
+                    } else {
+                        countEl.style.display = "none";
+                    }
+                    var wantView = getViewParam();
+                    if (wantView === "table") {
+                        viewWrap.innerHTML =
+                            '<div class="csv-table xml-table-wrap">' +
+                            renderXMLTableHTML(matches) +
+                            "</div>";
+                    } else if (wantView === "code") {
+                        viewWrap.innerHTML = data.rawContent
+                            ? '<div class="source-code">' + data.rawContent + "</div>"
+                            : '<div class="source-code"><pre>' + esc(data.rawXML || "") + "</pre></div>";
+                    } else {
+                        viewWrap.innerHTML = treeHTML(matches);
+                    }
+                }
+
+                // Create toggle
+                var toggle = document.createElement("span");
+                toggle.className = "view-toggle";
+                var btnTree = document.createElement("button");
+                btnTree.textContent = "Tree";
+                btnTree.className = getViewParam() === "table" || getViewParam() === "code" ? "" : "active";
+                var btnTable = document.createElement("button");
+                btnTable.textContent = "Table";
+                btnTable.className = getViewParam() === "table" ? "active" : "";
+                var btnCode = document.createElement("button");
+                btnCode.textContent = "Code";
+                btnCode.className = getViewParam() === "code" ? "active" : "";
+                toggle.appendChild(btnTree);
+                toggle.appendChild(btnTable);
+                toggle.appendChild(btnCode);
+                showFileHeaderBar(toggle, null);
+                btnTree.onclick = function () {
+                    setViewParam(null);
+                    btnTree.className = "active";
+                    btnTable.className = "";
+                    btnCode.className = "";
+                    counts();
+                };
+                btnTable.onclick = function () {
+                    setViewParam("table");
+                    btnTree.className = "";
+                    btnTable.className = "active";
+                    btnCode.className = "";
+                    counts();
+                };
+                btnCode.onclick = function () {
+                    setViewParam("code");
+                    btnTree.className = "";
+                    btnTable.className = "";
+                    btnCode.className = "active";
+                    counts();
+                };
+
+                if (parseError) {
+                    setViewParam("code");
+                    btnTree.className = "";
+                    btnTable.className = "";
+                    btnCode.className = "active";
+                }
+                counts();
+                if (parseError) {
+                    // matchedEntries clears the message during counts();
+                    // set it afterwards so it sticks.
+                    invalidMsg.textContent = "XML parse error — showing Code view";
+                }
             }
 
             /* ── WebSocket ────────────────────────────────────────────── */

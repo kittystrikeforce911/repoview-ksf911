@@ -8,6 +8,7 @@
 - [added] "Read file as" menu: any text file can now be re-rendered as plain text, Markdown, or a CSV table via a dropdown in the file header (URL param `?as=txt|md|csv`, backend `/api/file&as=…` renderer override)
 - [changed] `.txt` files now render in a dedicated plain-text reading view (no syntax-highlighting noise) with soft-wrap and line-number toggles persisted per viewer
 - [added] Advanced CSV filtering: a filter toolbar above the table with per-column contains / equals / regex / greater / less / empty operators, match-all or match-any combination, removable filter chips, live "Showing X of Y rows" count, and the server-rendered table restored verbatim when no filters are active
+- [added] XML viewer: `.xml` files (and any file read as XML) get a Tree/Table/Code view with client-side element filtering — tag globs (`book*`), attribute matchers (`id=x` or `book@id=x`), text search and XPath (`//book[@genre='web']`) — plus a live match count; unparseable XML falls back to the Code view with a shown error message
 
 ## [v0.17.0] - 2026-05-25
 

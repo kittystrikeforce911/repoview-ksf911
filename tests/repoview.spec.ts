@@ -447,6 +447,88 @@ test.describe("Markdown raw/preview toggle", () => {
   });
 });
 
+test.describe("XML viewer", () => {
+  test("tree view renders the element structure", async ({ page }) => {
+    await page.goto("/sample.xml");
+    await expect(page.locator(".xml-view")).toBeVisible();
+    // 1 catalog + 4 books + 2 magazines + 4 children each = 31 elements
+    await expect(page.locator(".xml-tree .xml-node")).toHaveCount(31);
+    await expect(page.locator(".xml-attr", { hasText: 'id="bk103"' }).first()).toBeVisible();
+  });
+
+  test("table view lists every element with attributes", async ({ page }) => {
+    await page.goto("/sample.xml");
+    await page.locator(".view-toggle button", { hasText: "Table" }).click();
+    await expect(page.locator(".xml-table")).toBeVisible();
+    await expect(page.locator(".xml-table tbody tr")).toHaveCount(31);
+    await expect(page.locator(".xml-table th")).toHaveCount(4);
+    await expect(page.locator(".xml-table th", { hasText: "Attributes" })).toBeVisible();
+    // The book element row carries its attributes and tag
+    // Book element row: tag + attributes. Title element row: direct text.
+    const row = page.locator(".xml-table tbody tr", { hasText: 'id="bk103"' }).first();
+    await expect(row).toContainText("book");
+    await expect(row).toContainText('genre="web"');
+    const titleRow = page.locator(".xml-table tbody tr", { hasText: "XQuery Kick Start" }).first();
+    await expect(titleRow).toContainText("title");
+  });
+
+  test("tag glob filter narrows tree and count", async ({ page }) => {
+    await page.goto("/sample.xml");
+    await page.locator(".csv-filter-col").fill("b*");
+    // matched entries with a tag starting "b" = the 4 book elements
+    await expect(page.locator(".csv-filter-count", { hasText: "Showing 4 of 31 elements" })).toBeVisible();
+    await expect(page.locator(".xml-attr", { hasText: 'id="bk102"' }).first()).toBeVisible();
+    await expect(page.locator(".xml-attr", { hasText: 'id="mg201"' })).toHaveCount(0);
+  });
+
+  test("attribute filter matches id=bk103", async ({ page }) => {
+    await page.goto("/sample.xml");
+    await page.locator(".csv-filter-op").fill("id=bk103");
+    await expect(page.locator(".csv-filter-count", { hasText: "Showing 1 of 31 elements" })).toBeVisible();
+    await expect(page.locator(".xml-attr", { hasText: 'id="bk103"' }).first()).toBeVisible();
+  });
+
+  test("xpath filter selects //book[@genre='web']", async ({ page }) => {
+    await page.goto("/sample.xml");
+    await page.locator(".csv-filter-xpath").fill("//book[@genre='web']");
+    await expect(page.locator(".csv-filter-count", { hasText: "Showing 2 of 31 elements" })).toBeVisible();
+    await expect(page.locator(".xml-attr", { hasText: 'id="bk103"' }).first()).toBeVisible();
+    await expect(page.locator(".xml-attr", { hasText: 'id="bk104"' }).first()).toBeVisible();
+  });
+
+  test("text filter and clear", async ({ page }) => {
+    await page.goto("/sample.xml");
+    await page.locator(".csv-filter-value").fill("Everyday Italian");
+    await expect(page.locator(".csv-filter-count", { hasText: "Showing 1 of 31 elements" })).toBeVisible();
+    await page.locator(".csv-filter-clear").click();
+    await expect(page.locator(".csv-filter-count")).not.toBeVisible();
+    await expect(page.locator(".xml-attr", { hasText: 'id="mg202"' }).first()).toBeVisible();
+  });
+
+  test("invalid xpath shows a message and empty tree", async ({ page }) => {
+    await page.goto("/sample.xml");
+    await page.locator(".csv-filter-xpath").fill("[(unclosed");
+    await expect(page.locator(".csv-filter-invalid", { hasText: "invalid xpath" })).toBeVisible();
+  });
+
+  test("code view shows the highlighted source", async ({ page }) => {
+    await page.goto("/sample.xml");
+    await page.locator(".view-toggle button", { hasText: "Code" }).click();
+    await expect(page.locator("#content-area .source-code")).toBeVisible();
+    await expect(page.locator(".view-toggle button.active", { hasText: "Code" })).toBeVisible();
+  });
+
+  test("read as XML viewer from a plain text file", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "example.txt" }).click();
+    await expect(page.locator(".source-code pre.plain-text")).toBeVisible();
+    await page.locator(".edit-dropdown-btn", { hasText: "Read file as" }).click();
+    await page.locator(".edit-dropdown-item", { hasText: "XML viewer" }).click();
+    await expect(page.locator(".xml-view")).toBeVisible();
+    await expect(page.locator(".csv-filter-invalid", { hasText: "XML parse error" })).toBeVisible();
+  });
+});
+
 test.describe("Binary file handling", () => {
   test("binary image shows inline img with correct src", async ({ page }) => {
     await page.goto("/");

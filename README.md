@@ -97,7 +97,7 @@ The update command downloads the latest release from GitHub, shows release notes
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/tree?path=` | Returns immediate children of a directory as JSON |
-| `GET /api/file?path=` | Returns rendered file content as JSON. Flags: `isMarkdown`, `isCSV`, `isSVG`, `isHTML`, `isPDF`, `isJSONL`, `isBinary`, `tooLarge` (file exceeds the 16 MB inline cap → Download via `/api/raw`), `content` (rendered HTML), `rawContent` (code view), `rawCSV`, `rawSVG`, `mimeType`, `size`. Optional `&as=txt\|md\|csv` overrides how the file renders ("Read file as" menu) |
+| `GET /api/file?path=` | Returns rendered file content as JSON. Flags: `isMarkdown`, `isCSV`, `isSVG`, `isHTML`, `isXML` (+ `rawXML` for the DOM-parseable source), `isPDF`, `isJSONL`, `isBinary`, `tooLarge` (file exceeds the 16 MB inline cap → Download via `/api/raw`), `content` (rendered HTML), `rawContent` (code view), `rawCSV`, `rawSVG`, `mimeType`, `size`. Optional `&as=txt\|md\|csv\|xml` overrides how the file renders ("Read file as" menu) |
 | `GET /api/raw?path=` | Serves the original file bytes for inline display and downloads (supports Range requests) |
 | `GET /api/files` | Returns a flat list of all file paths (uses `git ls-files` when available) |
 | `GET /api/jsonl?path=&page=&pageSize=` | Returns a page of JSONL records as pretty-printed JSON (max 100/page) |

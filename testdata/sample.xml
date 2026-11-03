@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<catalog>
+  <book id="bk101" genre="cooking">
+    <title>Everyday Italian</title>
+    <author>Giada De Laurentiis</author>
+    <year>2005</year>
+    <price currency="USD">30.00</price>
+  </book>
+  <book id="bk102" genre="children">
+    <title>Harry Potter</title>
+    <author>J.K. Rowling</author>
+    <year>2005</year>
+    <price currency="USD">29.99</price>
+  </book>
+  <book id="bk103" genre="web">
+    <title>XQuery Kick Start</title>
+    <author>James McGovern</author>
+    <year>2003</year>
+    <price currency="USD">49.99</price>
+  </book>
+  <book id="bk104" genre="web">
+    <title>Learning XML</title>
+    <author>Erik T. Ray</author>
+    <year>2003</year>
+    <price currency="GBP">39.95</price>
+  </book>
+  <magazine id="mg201" genre="tech">
+    <title>Systems Weekly</title>
+    <editor>Lee Fowler</editor>
+    <issn>1044-0174</issn>
+    <price currency="EUR">12.50</price>
+  </magazine>
+  <magazine id="mg202" genre="cooking">
+    <title>The Kitchen Table</title>
+    <editor>Anna Milo</editor>
+    <issn>0710-9932</issn>
+    <price currency="USD">8.00</price>
+  </magazine>
+</catalog>

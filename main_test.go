@@ -1944,6 +1944,41 @@ func TestHandleFile_ViewAsInvalid(t *testing.T) {
 	}
 }
 
+func TestHandleFile_XML(t *testing.T) {
+	setRoot(t, "testdata")
+
+	// Default .xml routing: code view with rawXML payload.
+	w0 := httptest.NewRecorder()
+	handleFile(w0, httptest.NewRequest("GET", "/api/file?path=sample.xml", nil))
+	var resp FileResponse
+	json.NewDecoder(w0.Body).Decode(&resp)
+	if !resp.IsXML {
+		t.Error("expected .xml to set isXML")
+	}
+	if resp.RawXML == "" {
+		t.Error("expected rawXML payload for DOM parsing")
+	}
+	if !strings.Contains(resp.Content, "<pre") {
+		t.Error("expected code view for .xml")
+	}
+
+	// as=xml override on a plain text file.
+	w1 := httptest.NewRecorder()
+	handleFile(w1, httptest.NewRequest("GET", "/api/file?path=example.txt&as=xml", nil))
+	var respXML FileResponse
+	json.NewDecoder(w1.Body).Decode(&respXML)
+	if !respXML.IsXML {
+		t.Error("expected as=xml to set isXML")
+	}
+
+	// Invalid as value still rejected.
+	w2 := httptest.NewRecorder()
+	handleFile(w2, httptest.NewRequest("GET", "/api/file?path=sample.xml&as=python", nil))
+	if w2.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w2.Code)
+	}
+}
+
 func TestHandleFile_TooLarge(t *testing.T) {
 	setRoot(t, "testdata")
 

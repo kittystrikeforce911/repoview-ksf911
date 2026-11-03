@@ -297,6 +297,8 @@ type FileResponse struct {
 	IsSVG      bool   `json:"isSVG,omitempty"`
 	RawSVG     string `json:"rawSVG,omitempty"`
 	IsHTML     bool   `json:"isHTML,omitempty"`
+	IsXML      bool   `json:"isXML,omitempty"`
+	RawXML     string `json:"rawXML,omitempty"`
 	IsPDF      bool   `json:"isPDF,omitempty"`
 	IsBinary   bool   `json:"isBinary,omitempty"`
 	IsJSONL    bool   `json:"isJSONL,omitempty"`
@@ -390,10 +392,11 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 	// whatever the extension would choose:
 	//   as=md  → render the raw text as Markdown
 	//   as=csv → render the raw text as a CSV table
+	//   as=xml → expose the parsed XML viewer for the raw text
 	//   as=txt → skip all rendering, show the raw text
 	asOverride := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("as")))
 	switch asOverride {
-	case "", "txt", "md", "csv":
+	case "", "txt", "md", "csv", "xml":
 	default:
 		http.Error(w, "invalid as param", http.StatusBadRequest)
 		return
@@ -423,19 +426,22 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 	isCSV := ext == ".csv"
 	isSVG := ext == ".svg"
 	isHTML := ext == ".html" || ext == ".htm"
+	isXML := ext == ".xml"
 
 	switch asOverride {
 	case "txt": // plain text view, no rendering
-		isMarkdown, isCSV, isSVG, isHTML = false, false, false, false
+		isMarkdown, isCSV, isSVG, isHTML, isXML = false, false, false, false, false
 	case "md":
-		isMarkdown, isCSV, isSVG, isHTML = true, false, false, false
+		isMarkdown, isCSV, isSVG, isHTML, isXML = true, false, false, false, false
 	case "csv":
-		isMarkdown, isCSV, isSVG, isHTML = false, true, false, false
+		isMarkdown, isCSV, isSVG, isHTML, isXML = false, true, false, false, false
+	case "xml":
+		isMarkdown, isCSV, isSVG, isHTML, isXML = false, false, false, false, true
 	}
 
 	// .txt files (and any file read as plain text) use the dedicated
 	// plain-text view instead of syntax highlighting.
-	isPlainText := (ext == ".txt" && !isMarkdown && !isCSV) || asOverride == "txt"
+	isPlainText := (ext == ".txt" && !isMarkdown && !isCSV && !isXML) || asOverride == "txt"
 
 	var buf bytes.Buffer
 	switch {
@@ -445,6 +451,8 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 		renderCSV(&buf, data)
 	case isHTML:
 		// HTML files render via /api/raw in an iframe; no server-side rendering needed.
+	case isXML:
+		renderCode(&buf, data, filepath.Base(filePath))
 	case isPlainText:
 		renderPlainText(&buf, data)
 	default:
@@ -464,13 +472,18 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 		IsCSV:      isCSV,
 		IsSVG:      isSVG,
 		IsHTML:     isHTML,
+		IsXML:      isXML,
 	}
 
 	if isCSV {
 		resp.RawCSV = string(data)
 	}
 
-	if isMarkdown || isSVG || isHTML || (!isPlainText && asOverride != "") {
+	if isXML {
+		resp.RawXML = string(data)
+	}
+
+	if isMarkdown || isSVG || isHTML || isXML || (!isPlainText && asOverride != "") {
 		var rawBuf bytes.Buffer
 		renderCode(&rawBuf, data, filepath.Base(filePath))
 		resp.RawContent = rawBuf.String()
