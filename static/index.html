@@ -833,6 +833,40 @@
                 padding: 16px;
             }
 
+            /* ── Plain text reading view (.txt) ──────────────────────── */
+            .source-code pre.plain-text {
+                font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo,
+                    Consolas, monospace;
+                line-height: 1.6;
+            }
+            .plain-text .plain-line {
+                display: block;
+                min-height: 1.6em;
+            }
+            .plain-text.wrap-on .plain-line {
+                white-space: pre-wrap;
+                overflow-wrap: anywhere;
+            }
+            .plain-text:not(.wrap-on) .plain-line {
+                white-space: pre;
+            }
+            .plain-text.show-numbers {
+                counter-reset: plain-line;
+            }
+            .plain-text.show-numbers .plain-line {
+                counter-increment: plain-line;
+            }
+            .plain-text.show-numbers .plain-line::before {
+                content: counter(plain-line);
+                display: inline-block;
+                width: 3em;
+                margin-right: 1.25em;
+                text-align: right;
+                color: var(--rv-text-secondary);
+                opacity: 0.55;
+                user-select: none;
+            }
+
             /* ── CSV table ────────────────────────────────────────────── */
             .csv-table {
                 border: 1px solid var(--rv-border);
@@ -3391,8 +3425,53 @@
                     if (getViewParam()) setViewParam(null);
                     area.innerHTML =
                         '<div class="source-code">' + data.content + "</div>";
-                    // Show file header bar without toggle for plain files
-                    showFileHeaderBar(null, null);
+
+                    // Plain text files (.txt, and files read as plain text
+                    // via ?as=txt) get wrap/line-number reading controls.
+                    var isPlainText = /(\.txt$|as=txt)/i.test(location.search) || /\.txt$/i.test(path);
+                    if (isPlainText) {
+                        var preEl = area.querySelector("pre.plain-text");
+                        if (preEl) {
+                            var readToggle = document.createElement("span");
+                            readToggle.className = "view-toggle";
+                            var wrapOn =
+                                localStorage.getItem("plainTextWrap") !== "0";
+                            var numsOn =
+                                localStorage.getItem("plainTextNumbers") === "1";
+                            if (wrapOn) preEl.classList.add("wrap-on");
+                            if (numsOn) preEl.classList.add("show-numbers");
+                            var btnWrap = document.createElement("button");
+                            btnWrap.textContent = "Wrap";
+                            btnWrap.className = wrapOn ? "active" : "";
+                            var btnNums = document.createElement("button");
+                            btnNums.textContent = "Line numbers";
+                            btnNums.className = numsOn ? "active" : "";
+                            readToggle.appendChild(btnWrap);
+                            readToggle.appendChild(btnNums);
+                            btnWrap.onclick = function () {
+                                var on = !preEl.classList.toggle("wrap-on");
+                                btnWrap.className = on ? "active" : "";
+                                localStorage.setItem(
+                                    "plainTextWrap",
+                                    on ? "1" : "0",
+                                );
+                            };
+                            btnNums.onclick = function () {
+                                var on = preEl.classList.toggle("show-numbers");
+                                btnNums.className = on ? "active" : "";
+                                localStorage.setItem(
+                                    "plainTextNumbers",
+                                    on ? "1" : "0",
+                                );
+                            };
+                            showFileHeaderBar(readToggle, null);
+                        } else {
+                            showFileHeaderBar(null, null);
+                        }
+                    } else {
+                        // Show file header bar without toggle for plain files
+                        showFileHeaderBar(null, null);
+                    }
                 }
 
                 // Update page title

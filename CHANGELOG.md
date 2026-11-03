@@ -6,6 +6,7 @@
 - [fixed] Live-reload watches registered with Windows-style backslash paths now match change notifications on all platforms (watch keys are slash-normalized)
 - [changed] Removed unused WebSocket hub goroutine (`hub.run`)
 - [added] "Read file as" menu: any text file can now be re-rendered as plain text, Markdown, or a CSV table via a dropdown in the file header (URL param `?as=txt|md|csv`, backend `/api/file&as=…` renderer override)
+- [changed] `.txt` files now render in a dedicated plain-text reading view (no syntax-highlighting noise) with soft-wrap and line-number toggles persisted per viewer
 
 ## [v0.17.0] - 2026-05-25
 

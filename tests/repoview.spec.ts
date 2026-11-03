@@ -340,10 +340,20 @@ test.describe("Markdown raw/preview toggle", () => {
     await page.locator(".tree-item .label", { hasText: "hello.md" }).click();
     await expect(page.locator(".view-toggle")).toBeVisible();
 
-    // Navigate to a plain text file (no toggle) - CSV files now have Table/Records toggle
-    await page.locator(".tree-item .label", { hasText: "example.txt" }).click();
+    // Navigate to a .go file (no view toggle; CSV/TXT have their own toggles)
+    await page.locator(".tree-item .label", { hasText: "sample.go" }).click();
     await expect(page.locator(".source-code")).toBeVisible();
     await expect(page.locator(".view-toggle")).not.toBeVisible();
+  });
+
+  test("plain text files show wrap and line-number controls", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "example.txt" }).click();
+    await expect(page.locator(".source-code pre.plain-text")).toBeVisible();
+    await expect(page.locator(".view-toggle button", { hasText: "Wrap" })).toBeVisible();
+    await expect(page.locator(".view-toggle button", { hasText: "Line numbers" })).toBeVisible();
+    // Dedicated plain-text view, not syntax-highlighted
+    await expect(page.locator(".source-code pre.plain-text .plain-line").first()).toBeVisible();
   });
 
   test("URL updates with ?view=code when switching to code view", async ({ page }) => {

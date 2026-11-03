@@ -425,13 +425,17 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 	isHTML := ext == ".html" || ext == ".htm"
 
 	switch asOverride {
-	case "txt": // no rendering at all
+	case "txt": // plain text view, no rendering
 		isMarkdown, isCSV, isSVG, isHTML = false, false, false, false
 	case "md":
 		isMarkdown, isCSV, isSVG, isHTML = true, false, false, false
 	case "csv":
 		isMarkdown, isCSV, isSVG, isHTML = false, true, false, false
 	}
+
+	// .txt files (and any file read as plain text) use the dedicated
+	// plain-text view instead of syntax highlighting.
+	isPlainText := (ext == ".txt" && !isMarkdown && !isCSV) || asOverride == "txt"
 
 	var buf bytes.Buffer
 	switch {
@@ -441,6 +445,8 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 		renderCSV(&buf, data)
 	case isHTML:
 		// HTML files render via /api/raw in an iframe; no server-side rendering needed.
+	case isPlainText:
+		renderPlainText(&buf, data)
 	default:
 		// Pretty-print JSON/YAML only when the extension asked for it;
 		// an explicit "read as" override shows the file verbatim.
@@ -464,7 +470,7 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 		resp.RawCSV = string(data)
 	}
 
-	if isMarkdown || isSVG || isHTML || asOverride != "" {
+	if isMarkdown || isSVG || isHTML || (!isPlainText && asOverride != "") {
 		var rawBuf bytes.Buffer
 		renderCode(&rawBuf, data, filepath.Base(filePath))
 		resp.RawContent = rawBuf.String()
@@ -649,6 +655,18 @@ func renderCSV(w io.Writer, data []byte) {
 		fmt.Fprint(w, "</tr>")
 	}
 	fmt.Fprint(w, "</tbody></table>")
+}
+
+// renderPlainText writes the raw text as a line-per-span <pre> so the
+// frontend can toggle line numbers and soft wrap in CSS only, without
+// syntax-highlighting noise that text readers do not want.
+func renderPlainText(w io.Writer, data []byte) {
+	w.Write([]byte("<pre class=\"plain-text\">"))
+	lines := strings.Split(strings.TrimSuffix(string(data), "\n"), "\n")
+	for _, line := range lines {
+		fmt.Fprintf(w, "<span class=\"plain-line\">%s</span>", html.EscapeString(line))
+	}
+	w.Write([]byte("</pre>"))
 }
 
 // renderCode syntax-highlights code using chroma and writes HTML to w.

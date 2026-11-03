@@ -509,8 +509,11 @@ func TestHandleFile_PlainText(t *testing.T) {
 	if resp.IsMarkdown || resp.IsCSV {
 		t.Error("expected plain text, not markdown or CSV")
 	}
-	if !strings.Contains(resp.Content, "<pre") {
-		t.Error("expected <pre> wrapper for plain text")
+	if !strings.Contains(resp.Content, `<pre class="plain-text">`) {
+		t.Errorf("expected dedicated plain-text view, got: %.120s", resp.Content)
+	}
+	if strings.Contains(resp.Content, "chroma") {
+		t.Error("plain text must not be syntax-highlighted")
 	}
 	if !strings.Contains(resp.Content, "plain text file") {
 		t.Error("expected file content in response")
