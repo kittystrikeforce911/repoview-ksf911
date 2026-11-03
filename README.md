@@ -12,7 +12,10 @@ I noticed my marketing team, when working with Claude Code and lots of markdown 
 
 - **GitHub-style UI** — familiar layout with resizable sidebar, breadcrumb navigation, and file tree
 - **Markdown rendering** — GitHub-Flavored Markdown via goldmark (tables, task lists, code blocks)
-- **CSV rendering** — automatic conversion to styled HTML tables
+- **Read file as** — re-render any text file as plain text, Markdown, a CSV table, or XML from a dropdown in the file header; plain `.txt` files open in a clean reading view with soft-wrap and line-number toggles
+- **CSV filter toolbar** — per-column operators (contains, equals, regex, greater, less, empty), match all or any combination, removable filter chips (click the chip itself) and a live "Showing X of Y rows" count
+- **CSV charts** — a Charts view beside the table with hand-rolled SVG visuals, no dependencies: bar, horizontal bar, stacked bar, line, area, scatter, pie and donut; choose the X column, numeric measure and aggregation (sum, avg, min, max, count), group by a colour column where it makes sense, and charts refresh live with the active row filters
+- **XML viewer** — `.xml` files get Tree/Table/Code views with client-side element filtering via tag globs (`book*`), attribute matchers (`book@id=x`), text search and XPath (`//book[@genre='web']`)
 - **Fuzzy file search** — press `t` to open a "Go to file" modal with fuzzy matching
 - **Live reload** — WebSocket-based file watching with fsnotify; changes appear instantly
 - **Single binary** — all HTML/CSS/JS embedded via `go:embed`, no external dependencies at runtime
@@ -115,6 +118,9 @@ go run . /path/to/dir
 
 # Run tests
 go test -v ./...
+
+# Frontend (Playwright browser) tests
+cd tests && npm test
 
 # Build
 go build -o repoview .
