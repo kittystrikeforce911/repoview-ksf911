@@ -868,6 +868,128 @@
             }
 
             /* ── CSV table ────────────────────────────────────────────── */
+            .csv-view {
+                margin-bottom: 16px;
+            }
+            .csv-filter-bar {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex-wrap: wrap;
+                padding: 8px 10px;
+                border: 1px solid var(--rv-border);
+                border-radius: 6px;
+                background: var(--rv-bg-secondary);
+                margin-bottom: 8px;
+            }
+            .csv-filter-bar select,
+            .csv-filter-bar input {
+                padding: 4px 8px;
+                font-size: 12px;
+                border: 1px solid var(--rv-border);
+                border-radius: 6px;
+                background: var(--rv-bg);
+                color: var(--rv-text);
+                font-family: inherit;
+            }
+            .csv-filter-value {
+                width: 140px;
+            }
+            .csv-filter-add {
+                padding: 4px 10px;
+                font-size: 12px;
+                font-weight: 500;
+                color: #ffffff;
+                background: var(--rv-btn-bg);
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: inherit;
+            }
+            .csv-filter-add:hover {
+                opacity: 0.9;
+            }
+            .csv-filter-clear {
+                padding: 4px 10px;
+                font-size: 12px;
+                color: var(--rv-text);
+                background: var(--rv-bg);
+                border: 1px solid var(--rv-border);
+                border-radius: 6px;
+                cursor: pointer;
+                font-family: inherit;
+            }
+            .csv-filter-clear:hover {
+                background: var(--rv-bg-hover);
+            }
+            .csv-filter-count {
+                margin-left: auto;
+                font-size: 12px;
+                color: var(--rv-text-secondary);
+                font-variant-numeric: tabular-nums;
+            }
+            .csv-filter-invalid {
+                font-size: 12px;
+                color: var(--rv-error-text);
+            }
+            .csv-filter-chips {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                flex-wrap: wrap;
+                margin-bottom: 8px;
+            }
+            .csv-filter-chip {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                padding: 3px 10px;
+                font-size: 12px;
+                color: var(--rv-text);
+                background: var(--rv-bg);
+                border: 1px solid var(--rv-border);
+                border-radius: 999px;
+                cursor: pointer;
+                font-family: inherit;
+            }
+            .csv-filter-chip strong {
+                font-weight: 600;
+                color: var(--rv-text-secondary);
+            }
+            .csv-filter-chip code {
+                font-size: 11px;
+                background: var(--rv-bg-secondary);
+                padding: 1px 6px;
+                border-radius: 4px;
+            }
+            .csv-filter-chip-x {
+                color: var(--rv-text-secondary);
+                font-size: 11px;
+            }
+            .csv-filter-chip:hover .csv-filter-chip-x {
+                color: var(--rv-error-text);
+            }
+            .csv-filter-modes {
+                display: inline-flex;
+                border: 1px solid var(--rv-border);
+                border-radius: 6px;
+                overflow: hidden;
+                margin-left: 4px;
+            }
+            .csv-filter-mode {
+                padding: 3px 10px;
+                font-size: 12px;
+                color: var(--rv-text);
+                background: var(--rv-bg);
+                border: none;
+                cursor: pointer;
+                font-family: inherit;
+            }
+            .csv-filter-mode.active {
+                background: var(--rv-bg-hover);
+                font-weight: 600;
+                color: var(--rv-text);
+            }
             .csv-table {
                 border: 1px solid var(--rv-border);
                 border-radius: 6px;
@@ -3322,12 +3444,158 @@
                         outlineBtn = null;
                     };
                 } else if (data.isCSV) {
-                    var tableHTML =
-                        '<div class="csv-table">' + data.content + "</div>";
                     var recordsHTML = null;
                     var wantRecords = getViewParam() === "records";
 
-                    area.innerHTML = tableHTML;
+                    // Parse the CSV once; filtering shares it (and Charts do).
+                    var csvParsed = null; // { headers, rows: [{cells, orig}] }
+                    function getParsedCSV() {
+                        if (csvParsed) return csvParsed;
+                        var parsed = parseCSVAll(data.rawCSV);
+                        var rowsAll = [];
+                        for (var i = 1; i < parsed.length; i++) {
+                            rowsAll.push({ cells: parsed[i], orig: i });
+                        }
+                        csvParsed = {
+                            headers: parsed.length ? parsed[0] : [],
+                            rows: rowsAll,
+                        };
+                        return csvParsed;
+                    }
+
+                    var csvFilters = []; // [{col, op, value}]
+                    var csvFilterMode = "all";
+
+                    // Server-rendered table is the unfiltered baseline.
+                    var csvTableEl = document.createElement("div");
+                    csvTableEl.className = "csv-table";
+                    csvTableEl.innerHTML = data.content;
+
+                    // ── Filter bar ──
+                    var filterBar = document.createElement("div");
+                    filterBar.className = "csv-filter-bar";
+
+                    var colSelect = document.createElement("select");
+                    colSelect.className = "csv-filter-col";
+                    var colOptions = getParsedCSV().headers;
+                    for (var ci = 0; ci < colOptions.length; ci++) {
+                        var colOpt = document.createElement("option");
+                        colOpt.value = String(ci);
+                        colOpt.textContent = colOptions[ci];
+                        colSelect.appendChild(colOpt);
+                    }
+
+                    var opSelect = document.createElement("select");
+                    opSelect.className = "csv-filter-op";
+                    [
+                        ["contains", "contains"],
+                        ["equals", "equals"],
+                        ["regex", "regex"],
+                        ["gt", ">"],
+                        ["lt", "<"],
+                        ["empty", "is empty"],
+                        ["not-empty", "not empty"],
+                    ].forEach(function (pair) {
+                        var opt = document.createElement("option");
+                        opt.value = pair[0];
+                        opt.textContent = pair[1];
+                        opSelect.appendChild(opt);
+                    });
+
+                    var valInput = document.createElement("input");
+                    valInput.className = "csv-filter-value";
+                    valInput.placeholder = "Value…";
+                    valInput.type = "text";
+
+                    var invalidMsg = document.createElement("span");
+                    invalidMsg.className = "csv-filter-invalid";
+
+                    var addBtn = document.createElement("button");
+                    addBtn.className = "csv-filter-add";
+                    addBtn.textContent = "+ Add";
+                    addBtn.onclick = function () {
+                        var col = parseInt(colSelect.value, 10);
+                        var op = opSelect.value;
+                        var value = valInput.value;
+                        if (
+                            (op === "contains" || op === "equals" || op === "regex" || op === "gt" || op === "lt") &&
+                            value === ""
+                        ) {
+                            invalidMsg.textContent = "enter a value";
+                            return;
+                        }
+                        if (op === "regex") {
+                            try {
+                                new RegExp(value, "i");
+                            } catch (e) {
+                                invalidMsg.textContent = "invalid regex: " + e.message;
+                                return;
+                            }
+                        }
+                        invalidMsg.textContent = "";
+                        csvFilters.push({ col: col, op: op, value: value });
+                        valInput.value = "";
+                        renderChips();
+                        applyFilters();
+                    };
+
+                    valInput.addEventListener("keydown", function (e) {
+                        if (e.key === "Enter") {
+                            e.preventDefault();
+                            addBtn.onclick();
+                        }
+                    });
+
+                    var modeAllBtn = document.createElement("button");
+                    modeAllBtn.className = "csv-filter-mode active";
+                    modeAllBtn.textContent = "match all";
+                    var modeAnyBtn = document.createElement("button");
+                    modeAnyBtn.className = "csv-filter-mode";
+                    modeAnyBtn.textContent = "match any";
+                    modeAllBtn.onclick = function () {
+                        csvFilterMode = "all";
+                        modeAllBtn.className = "csv-filter-mode active";
+                        modeAnyBtn.className = "csv-filter-mode";
+                        applyFilters();
+                    };
+                    modeAnyBtn.onclick = function () {
+                        csvFilterMode = "any";
+                        modeAnyBtn.className = "csv-filter-mode active";
+                        modeAllBtn.className = "csv-filter-mode";
+                        applyFilters();
+                    };
+
+                    var clearBtn = document.createElement("button");
+                    clearBtn.className = "csv-filter-clear";
+                    clearBtn.textContent = "Clear";
+                    clearBtn.onclick = function () {
+                        csvFilters = [];
+                        renderChips();
+                        applyFilters();
+                    };
+
+                    var countEl = document.createElement("span");
+                    countEl.className = "csv-filter-count";
+
+                    var chipsWrap = document.createElement("div");
+                    chipsWrap.className = "csv-filter-chips";
+
+                    filterBar.appendChild(colSelect);
+                    filterBar.appendChild(opSelect);
+                    filterBar.appendChild(valInput);
+                    filterBar.appendChild(addBtn);
+                    filterBar.appendChild(invalidMsg);
+                    filterBar.appendChild(clearBtn);
+                    filterBar.appendChild(countEl);
+
+                    var csvView = document.createElement("div");
+                    csvView.className = "csv-view";
+                    csvView.appendChild(filterBar);
+                    csvView.appendChild(chipsWrap);
+                    csvView.appendChild(csvTableEl);
+
+                    area.innerHTML = "";
+                    area.appendChild(csvView);
 
                     // Create toggle
                     var toggle = document.createElement("span");
@@ -3340,9 +3608,82 @@
                     btnRecords.className = wantRecords ? "active" : "";
                     toggle.appendChild(btnTable);
                     toggle.appendChild(btnRecords);
-
-                    // Show file header bar with toggle
                     showFileHeaderBar(toggle, null);
+
+                    function renderChips() {
+                        chipsWrap.innerHTML = "";
+                        if (csvFilters.length === 0) {
+                            chipsWrap.style.display = "none";
+                            clearBtn.style.display = "none";
+                            return;
+                        }
+                        chipsWrap.style.display = "";
+                        clearBtn.style.display = "";
+                        var headers = getParsedCSV().headers;
+                        csvFilters.forEach(function (f, idx) {
+                            var chip = document.createElement("button");
+                            chip.className = "csv-filter-chip";
+                            var opLabel =
+                                { contains: "contains", equals: "=",
+                                  regex: "~", gt: ">", lt: "<",
+                                  empty: "empty", "not-empty": "set" }[f.op] || f.op;
+                            chip.innerHTML =
+                                "<span>" +
+                                esc(headers[f.col] || "?") +
+                                "</span><strong>" +
+                                esc(opLabel) +
+                                "</strong>" +
+                                (f.op === "empty" || f.op === "not-empty"
+                                    ? ""
+                                    : "<code>" + esc(f.value) + "</code>");
+                            var xbtn = document.createElement("span");
+                            xbtn.className = "csv-filter-chip-x";
+                            xbtn.textContent = "✕";
+                            xbtn.onclick = function (e) {
+                                e.stopPropagation();
+                                csvFilters.splice(idx, 1);
+                                renderChips();
+                                applyFilters();
+                            };
+                            chip.appendChild(xbtn);
+                            chipsWrap.appendChild(chip);
+                        });
+                        var modeSeg = document.createElement("span");
+                        modeSeg.className = "csv-filter-modes";
+                        modeSeg.appendChild(modeAllBtn);
+                        modeSeg.appendChild(modeAnyBtn);
+                        chipsWrap.appendChild(modeSeg);
+                    }
+
+                    function applyFilters() {
+                        var parsed = getParsedCSV();
+                        var indices = csvFilteredIndices(
+                            parsed.rows,
+                            csvFilters,
+                            csvFilterMode,
+                        );
+                        if (csvFilters.length === 0) {
+                            // Restore the server-rendered table verbatim.
+                            csvTableEl.innerHTML = data.content;
+                        } else {
+                            var shown = [];
+                            indices.forEach(function (i) {
+                                shown.push(parsed.rows[i]);
+                            });
+                            csvTableEl.innerHTML = renderCSVTableHTML(
+                                parsed.headers,
+                                shown,
+                            );
+                        }
+                        if (csvFilters.length) {
+                            countEl.textContent =
+                                "Showing " + indices.length + " of " + parsed.rows.length + " rows";
+                            countEl.style.display = "";
+                        } else {
+                            countEl.style.display = "none";
+                        }
+                        bindRowLinkClicks();
+                    }
 
                     function showRecords() {
                         if (!recordsHTML && data.rawCSV) {
@@ -3371,7 +3712,8 @@
                     }
 
                     function showTable() {
-                        area.innerHTML = tableHTML;
+                        area.innerHTML = "";
+                        area.appendChild(csvView);
                         btnTable.className = "active";
                         btnRecords.className = "";
                         bindRowLinkClicks();
@@ -3414,6 +3756,9 @@
                         btnTable.className = "";
                         setViewParam("records");
                     };
+
+                    renderChips();
+                    applyFilters();
 
                     if (wantRecords) {
                         showRecords();
@@ -3843,6 +4188,107 @@
                     remaining = result.rest;
                 }
                 return rows;
+            }
+
+            /* ── CSV filtering ──────────────────────────────────────── */
+
+            // renderCSVTableHTML builds the same table markup the backend
+            // renders for CSV files, but from already-parsed rows. Each row
+            // needs an "orig" property (its 1-based row number in the full
+            // file) so record links in the filtered table jump to the
+            // correct record.
+            function renderCSVTableHTML(headers, rows) {
+                var html = "<table><thead><tr>";
+                for (var i = 0; i < headers.length; i++) {
+                    html += "<th>" + esc(headers[i]) + "</th>";
+                }
+                html += '<th class="csv-row-link-header"></th>';
+                html += "</tr></thead><tbody>";
+                for (var j = 0; j < rows.length; j++) {
+                    var row = rows[j];
+                    html += "<tr>";
+                    for (var k = 0; k < row.length; k++) {
+                        html += "<td>" + esc(String(row[k])) + "</td>";
+                    }
+                    html +=
+                        '<td class="csv-row-link"><button class="csv-record-link-btn" data-row="' +
+                        row.orig +
+                        '" title="View record">→</button></td>';
+                    html += "</tr>";
+                }
+                html += "</tbody></table>";
+                return html;
+            }
+
+            // csvFilterMatches applies one filter object to a cell value.
+            // gt/lt compare numerically and reject non-numeric cells; text
+            // comparisons are case-insensitive.
+            function csvFilterMatches(cell, filter) {
+                var value = String(cell == null ? "" : cell).trim();
+                switch (filter.op) {
+                    case "contains":
+                        return (
+                            value
+                                .toLowerCase()
+                                .indexOf(filter.value.toLowerCase()) !== -1
+                        );
+                    case "equals":
+                        return (
+                            value.toLowerCase() === filter.value.toLowerCase()
+                        );
+                    case "regex":
+                        return new RegExp(filter.value, "i").test(value);
+                    case "gt":
+                    case "lt": {
+                        var num = parseFloat(value);
+                        if (isNaN(num)) return false;
+                        var target = parseFloat(filter.value);
+                        return filter.op === "gt"
+                            ? num > target
+                            : num < target;
+                    }
+                    case "empty":
+                        return value === "";
+                    case "not-empty":
+                        return value !== "";
+                    default:
+                        return true;
+                }
+            }
+
+            // csvFilteredIndices returns the 0-based indices of the rows
+            // (objects like { cells: [...], orig: 1 }) matching the active
+            // filters, combined with CSV filter mode "all" or "any".
+            function csvFilteredIndices(rows, filters, mode) {
+                if (!filters.length) {
+                    var all = [];
+                    for (var i = 0; i < rows.length; i++) all.push(i);
+                    return all;
+                }
+                var out = [];
+                for (var j = 0; j < rows.length; j++) {
+                    var row = rows[j];
+                    var match;
+                    if (mode === "any") {
+                        match = false;
+                        for (var a = 0; a < filters.length; a++) {
+                            if (csvFilterMatches(row.cells[filters[a].col], filters[a])) {
+                                match = true;
+                                break;
+                            }
+                        }
+                    } else {
+                        match = true;
+                        for (var b = 0; b < filters.length; b++) {
+                            if (!csvFilterMatches(row.cells[filters[b].col], filters[b])) {
+                                match = false;
+                                break;
+                            }
+                        }
+                    }
+                    if (match) out.push(j);
+                }
+                return out;
             }
 
             function renderCSVRecords(headers, rows) {

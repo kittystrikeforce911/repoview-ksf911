@@ -356,6 +356,75 @@ test.describe("Markdown raw/preview toggle", () => {
     await expect(page.locator(".source-code pre.plain-text .plain-line").first()).toBeVisible();
   });
 
+  test("CSV filter bar filters rows and restores server content", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "colors.csv" }).click();
+    await expect(page.locator(".csv-filter-bar")).toBeVisible();
+
+    const colSelect = page.locator(".csv-filter-col");
+    const opSelect = page.locator(".csv-filter-op");
+    const valueInput = page.locator(".csv-filter-value");
+    const add = page.locator(".csv-filter-add");
+
+    // Filter: category contains "warm"
+    await colSelect.selectOption({ label: "category" });
+    await opSelect.selectOption("contains");
+    await valueInput.fill("warm");
+    await add.click();
+
+    await expect(page.locator(".csv-filter-count", { hasText: "Showing 0 of" })).not.toBeVisible();
+    const countAll = await page.locator(".csv-filter-count").textContent();
+    expect(countAll).toMatch(/Showing \d+ of \d+ rows/);
+    const firstCount = parseInt(countAll!.match(/Showing (\d+)/)![1], 10);
+    expect(firstCount).toBeGreaterThan(0);
+    expect(firstCount).toBeLessThan(30);
+    await expect(page.locator(".csv-filter-chip", { hasText: "category" })).toBeVisible();
+
+    // Clear restores the server-rendered table (count hides again)
+    await page.locator(".csv-filter-clear").click();
+    await expect(page.locator(".csv-filter-count")).not.toBeVisible();
+    await expect(page.locator(".csv-table tbody tr")).toHaveCount(30);
+  });
+
+  test("CSV numeric and regex filters with match any/all modes", async ({ page }) => {
+    await page.goto("/colors.csv");
+    await expect(page.locator(".csv-filter-bar")).toBeVisible();
+
+    // weight > 1.0 (numeric op)
+    await page.locator(".csv-filter-col").selectOption({ label: "weight" });
+    await page.locator(".csv-filter-op").selectOption("gt");
+    await page.locator(".csv-filter-value").fill("1.0");
+    await page.locator(".csv-filter-add").click();
+    const gtCount = await page.locator(".csv-filter-count").textContent();
+    expect(parseInt(gtCount!.match(/Showing (\d+)/)![1], 10)).toBeGreaterThan(0);
+
+    // invalid regex does not create a chip
+    await page.locator(".csv-filter-col").selectOption({ label: "name" });
+    await page.locator(".csv-filter-op").selectOption("regex");
+    await page.locator(".csv-filter-value").fill("([unclosed");
+    await page.locator(".csv-filter-add").click();
+    await expect(page.locator(".csv-filter-invalid", { hasText: "invalid regex" })).toBeVisible();
+
+    // valid regex chip appears and count updates again
+    await page.locator(".csv-filter-value").fill("^m");
+    await page.locator(".csv-filter-add").click();
+    await expect(page.locator(".csv-filter-chip", { hasText: "~" }).first()).toBeVisible();
+
+    // match-any widens the result set
+    const allCount = await page.locator(".csv-filter-count").textContent();
+    await page.getByRole("button", { name: "match any" }).click();
+    const anyCount = await page.locator(".csv-filter-count").textContent();
+    expect(parseInt(anyCount!.match(/Showing (\d+)/)![1], 10)).toBeGreaterThanOrEqual(
+      parseInt(allCount!.match(/Showing (\d+)/)![1], 10),
+    );
+  });
+
+  test("CSV read-as plain text shows verbatim rows", async ({ page }) => {
+    await page.goto("/colors.csv?as=txt");
+    await expect(page.locator(".source-code pre.plain-text")).toBeVisible();
+    await expect(page.locator(".plain-text .plain-line").first()).toBeVisible();
+  });
+
   test("URL updates with ?view=code when switching to code view", async ({ page }) => {
     await page.goto("/");
     await page.locator(".tree-item .label", { hasText: "hello.md" }).click();

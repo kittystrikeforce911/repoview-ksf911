@@ -7,6 +7,7 @@
 - [changed] Removed unused WebSocket hub goroutine (`hub.run`)
 - [added] "Read file as" menu: any text file can now be re-rendered as plain text, Markdown, or a CSV table via a dropdown in the file header (URL param `?as=txt|md|csv`, backend `/api/file&as=…` renderer override)
 - [changed] `.txt` files now render in a dedicated plain-text reading view (no syntax-highlighting noise) with soft-wrap and line-number toggles persisted per viewer
+- [added] Advanced CSV filtering: a filter toolbar above the table with per-column contains / equals / regex / greater / less / empty operators, match-all or match-any combination, removable filter chips, live "Showing X of Y rows" count, and the server-rendered table restored verbatim when no filters are active
 
 ## [v0.17.0] - 2026-05-25
 
