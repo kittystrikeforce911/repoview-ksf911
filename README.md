@@ -97,9 +97,15 @@ The update command downloads the latest release from GitHub, shows release notes
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/tree?path=` | Returns immediate children of a directory as JSON |
-| `GET /api/file?path=` | Returns rendered file content as JSON (`content`, `name`, `path`, `isMarkdown`, `isCSV`) |
+| `GET /api/file?path=` | Returns rendered file content as JSON. Flags: `isMarkdown`, `isCSV`, `isSVG`, `isHTML`, `isPDF`, `isJSONL`, `isBinary`, `tooLarge` (file exceeds the 16 MB inline cap → Download via `/api/raw`), `content` (rendered HTML), `rawContent` (code view), `rawCSV`, `rawSVG`, `mimeType`, `size` |
+| `GET /api/raw?path=` | Serves the original file bytes for inline display and downloads (supports Range requests) |
 | `GET /api/files` | Returns a flat list of all file paths (uses `git ls-files` when available) |
-| `WS /ws` | WebSocket for file change notifications |
+| `GET /api/jsonl?path=&page=&pageSize=` | Returns a page of JSONL records as pretty-printed JSON (max 100/page) |
+| `GET /api/editors` | Returns available editors for the "Open in editor" feature |
+| `POST /api/open?path=&editor=` | Opens a file in a configured editor (`vscode`, `cursor`, `sublime`, `zed`) |
+| `WS /ws` | WebSocket for file change notifications (same-origin only) |
+
+All read-only endpoints accept `GET`/`HEAD` only and answer `405` otherwise.
 
 ## Development
 
