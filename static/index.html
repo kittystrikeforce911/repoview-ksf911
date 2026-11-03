@@ -1815,6 +1815,7 @@
             /* ── State ────────────────────────────────────────────────── */
             let currentPath = "";
             let currentFilePath = "";
+            let currentFileIsText = false;
             let expandedDirs = new Set();
             let treeCache = {};
             let allFiles = null;
@@ -2011,6 +2012,80 @@
                         ".<br>Requires shell command installation.";
                     menu.appendChild(footer);
                 }
+            }
+
+            function createReadAsButton() {
+                var container = document.createElement("div");
+                container.className = "edit-dropdown";
+
+                var btn = document.createElement("button");
+                btn.className = "edit-dropdown-btn";
+                btn.innerHTML =
+                    '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M8 3C4.931 3 2.394 5.662 1.247 7.393a.97.97 0 0 0 0 1.214C2.394 10.338 4.931 13 8 13s5.606-2.662 6.753-4.393a.97.97 0 0 0 0-1.214C13.606 5.662 11.069 3 8 3Zm0 7a2.5 2.5 0 1 1 0-5 2.5 2.5 0 0 1 0 5Z"/></svg>Read file as';
+
+                var menu = document.createElement("div");
+                menu.className = "edit-dropdown-menu";
+
+                btn.onclick = function (e) {
+                    e.stopPropagation();
+                    document
+                        .querySelectorAll(".edit-dropdown-menu.open")
+                        .forEach(function (m) {
+                            if (m !== menu) m.classList.remove("open");
+                        });
+                    menu.classList.toggle("open");
+                    if (menu.classList.contains("open")) {
+                        populateReadAsMenu(menu);
+                    }
+                };
+
+                container.appendChild(btn);
+                container.appendChild(menu);
+
+                document.addEventListener("click", function (e) {
+                    if (!container.contains(e.target)) {
+                        menu.classList.remove("open");
+                    }
+                });
+
+                return container;
+            }
+
+            function populateReadAsMenu(menu) {
+                menu.innerHTML = "";
+
+                var header = document.createElement("div");
+                header.className = "edit-dropdown-header";
+                header.textContent = "Read file as";
+                menu.appendChild(header);
+
+                var current = getAsParam() || "";
+                var items = [
+                    { as: "", label: "Auto (by extension)" },
+                    { as: "txt", label: "Plain text" },
+                    { as: "md", label: "Markdown" },
+                    { as: "csv", label: "CSV table" },
+                ];
+                items.forEach(function (item) {
+                    var btn = document.createElement("button");
+                    btn.className = "edit-dropdown-item";
+                    if (current === item.as) {
+                        btn.classList.add("preferred");
+                    }
+                    btn.innerHTML =
+                        (current === item.as
+                            ? '<svg viewBox="0 0 16 16" fill="currentColor"><path d="M13.78 4.22a.75.75 0 0 1 0 1.06l-7.25 7.25a.75.75 0 0 1-1.06 0L2.22 9.28a.75.75 0 0 1 1.06-1.06L6 10.94l6.72-6.72a.75.75 0 0 1 1.06 0Z"/></svg>'
+                            : '<svg viewBox="0 0 16 16" fill="none"></svg>') +
+                        "<span>" + esc(item.label) + "</span>";
+                    btn.onclick = function (e) {
+                        e.stopPropagation();
+                        menu.classList.remove("open");
+                        if (current === item.as) return;
+                        setAsParam(item.as);
+                        loadFile(currentFilePath, true);
+                    };
+                    menu.appendChild(btn);
+                });
             }
 
             async function openInEditor(editorId) {
@@ -2330,6 +2405,11 @@
                 }
                 if (meta) {
                     metaEl.innerHTML = meta;
+                }
+
+                // "Read file as" menu for files rendered inline as text
+                if (currentFileIsText && currentFilePath) {
+                    actions.insertBefore(createReadAsButton(), actions.firstChild);
                 }
 
                 // Add edit button if installed editors are available
@@ -2837,6 +2917,7 @@
 
             async function loadFile(path, skipPush) {
                 closeSidebar();
+                currentFileIsText = false;
                 // Unwatch old file
                 if (currentFilePath) wsUnwatch(currentFilePath);
 
@@ -2864,8 +2945,11 @@
                     }
                 }
 
+                var resultCode = getAsParam();
                 var result = await apiFetch(
-                    "/api/file?path=" + encodeURIComponent(path),
+                    "/api/file?path=" +
+                        encodeURIComponent(path) +
+                        (resultCode ? "&as=" + encodeURIComponent(resultCode) : ""),
                 );
                 if (!result.ok) {
                     var area = document.getElementById("content-area");
@@ -2908,6 +2992,9 @@
                     document.title = bigName + " - RepoView";
                     return;
                 }
+
+                // Text files rendered inline support the "Read file as" menu.
+                currentFileIsText = true;
 
                 // Handle PDF files
                 if (data.isPDF) {
@@ -3719,6 +3806,23 @@
             function getRecordParam() {
                 var params = new URLSearchParams(location.search);
                 return params.get("r");
+            }
+
+            function getAsParam() {
+                var params = new URLSearchParams(location.search);
+                return params.get("as");
+            }
+
+            function setAsParam(as) {
+                var params = new URLSearchParams(location.search);
+                if (as) {
+                    params.set("as", as);
+                } else {
+                    params.delete("as");
+                }
+                var qs = params.toString();
+                var url = location.pathname + (qs ? "?" + qs : "");
+                history.replaceState(null, "", url);
             }
 
             function setRecordParam(index) {

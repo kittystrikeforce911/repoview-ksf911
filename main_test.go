@@ -1864,6 +1864,83 @@ func TestWebSocket_WatchNormalizesWindowsPath(t *testing.T) {
 	}
 }
 
+// ── Read file as renderer override tests ────────────────────
+
+func TestHandleFile_ViewAsText(t *testing.T) {
+	setRoot(t, "testdata")
+
+	req := httptest.NewRequest("GET", "/api/file?path=hello.md&as=txt", nil)
+	w := httptest.NewRecorder()
+	handleFile(w, req)
+
+	var resp FileResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if resp.IsMarkdown {
+		t.Error("expected as=txt to disable markdown rendering")
+	}
+	if !strings.Contains(resp.Content, "Hello") {
+		t.Errorf("expected raw text content, got: %.80s", resp.Content)
+	}
+	if strings.Contains(resp.Content, "<h1") {
+		t.Error("as=txt must not render markdown headings")
+	}
+}
+
+func TestHandleFile_ViewAsMarkdown(t *testing.T) {
+	setRoot(t, "testdata")
+
+	req := httptest.NewRequest("GET", "/api/file?path=example.txt&as=md", nil)
+	w := httptest.NewRecorder()
+	handleFile(w, req)
+
+	var resp FileResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if !resp.IsMarkdown {
+		t.Error("expected as=md to set isMarkdown")
+	}
+	if !strings.Contains(resp.Content, "<p>") {
+		t.Errorf("expected markdown-rendered content, got: %.80s", resp.Content)
+	}
+	if resp.RawContent == "" {
+		t.Error("expected rawContent for the code view of md overrides")
+	}
+}
+
+func TestHandleFile_ViewAsCSV(t *testing.T) {
+	setRoot(t, "testdata")
+
+	req := httptest.NewRequest("GET", "/api/file?path=example.txt&as=csv", nil)
+	w := httptest.NewRecorder()
+	handleFile(w, req)
+
+	var resp FileResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if !resp.IsCSV {
+		t.Error("expected as=csv to set isCSV")
+	}
+	if !strings.Contains(resp.Content, "<table") {
+		t.Error("expected CSV table content")
+	}
+	if resp.RawCSV == "" {
+		t.Error("expected rawCSV payload for the records view")
+	}
+}
+
+func TestHandleFile_ViewAsInvalid(t *testing.T) {
+	setRoot(t, "testdata")
+
+	req := httptest.NewRequest("GET", "/api/file?path=example.txt&as=exec", nil)
+	w := httptest.NewRecorder()
+	handleFile(w, req)
+
+	if w.Code != http.StatusBadRequest {
+		t.Fatalf("expected 400, got %d", w.Code)
+	}
+}
+
 func TestHandleFile_TooLarge(t *testing.T) {
 	setRoot(t, "testdata")
 

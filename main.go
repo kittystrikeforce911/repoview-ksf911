@@ -384,6 +384,21 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Optional "read file as" renderer override. It only affects files
+	// rendered inline as text; metadata-only responses (PDF, JSONL,
+	// binary, oversized) ignore it. The override takes precedence over
+	// whatever the extension would choose:
+	//   as=md  → render the raw text as Markdown
+	//   as=csv → render the raw text as a CSV table
+	//   as=txt → skip all rendering, show the raw text
+	asOverride := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("as")))
+	switch asOverride {
+	case "", "txt", "md", "csv":
+	default:
+		http.Error(w, "invalid as param", http.StatusBadRequest)
+		return
+	}
+
 	data, err := os.ReadFile(filePath)
 	if err != nil {
 		http.Error(w, "cannot read file", http.StatusInternalServerError)
@@ -409,6 +424,15 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 	isSVG := ext == ".svg"
 	isHTML := ext == ".html" || ext == ".htm"
 
+	switch asOverride {
+	case "txt": // no rendering at all
+		isMarkdown, isCSV, isSVG, isHTML = false, false, false, false
+	case "md":
+		isMarkdown, isCSV, isSVG, isHTML = true, false, false, false
+	case "csv":
+		isMarkdown, isCSV, isSVG, isHTML = false, true, false, false
+	}
+
 	var buf bytes.Buffer
 	switch {
 	case isMarkdown:
@@ -418,7 +442,11 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 	case isHTML:
 		// HTML files render via /api/raw in an iframe; no server-side rendering needed.
 	default:
-		data = prettyPrint(data, ext)
+		// Pretty-print JSON/YAML only when the extension asked for it;
+		// an explicit "read as" override shows the file verbatim.
+		if asOverride == "" {
+			data = prettyPrint(data, ext)
+		}
 		renderCode(&buf, data, filepath.Base(filePath))
 	}
 
@@ -436,7 +464,7 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 		resp.RawCSV = string(data)
 	}
 
-	if isMarkdown || isSVG || isHTML {
+	if isMarkdown || isSVG || isHTML || asOverride != "" {
 		var rawBuf bytes.Buffer
 		renderCode(&rawBuf, data, filepath.Base(filePath))
 		resp.RawContent = rawBuf.String()
