@@ -425,6 +425,79 @@ test.describe("Markdown raw/preview toggle", () => {
     await expect(page.locator(".plain-text .plain-line").first()).toBeVisible();
   });
 
+  test("CSV charts: bar default, type switching and hover titles", async ({ page }) => {
+    await page.goto("/colors.csv");
+    await page.locator(".view-toggle button", { hasText: "Charts" }).click();
+    await expect(page.locator("svg.csv-chart")).toBeVisible();
+    await expect(page.locator(".csv-chart-note")).toHaveText(/plotting \d+ of 30 rows/);
+    // Default bar chart: one rect + hover title per X bucket
+    const rects = page.locator("svg.csv-chart rect.chart-rect");
+    await expect(rects.first()).toBeVisible();
+    expect(await rects.count()).toBeGreaterThan(0);
+    // SVG <title> is a tooltip-only node (never "visible" to Playwright),
+    // so assert its text and one-title-per-rect instead.
+    const titles = page.locator("svg.csv-chart rect.chart-rect title");
+    await expect(titles.first()).toHaveText(/\d/);
+    expect(await titles.count()).toBe(await rects.count());
+    // Scale sanity: bars are not saturated at full plot height and the
+    // y-axis reaches the nice-rounded max — sum(id) tops at 30 → axis 50.
+    expect(parseFloat(await rects.first().getAttribute("height"))).toBeLessThan(304);
+    await expect(
+      page.locator("svg.csv-chart text.chart-tick", { hasText: "50" }),
+    ).not.toHaveCount(0);
+
+    // Switch through the core chart types
+    const types = [
+      ["hbar", "rect.chart-rect"],
+      ["scatter", "circle.chart-dot"],
+      ["pie", "path.chart-slice"],
+      ["donut", "path.chart-slice"],
+      ["area", "path.chart-area"],
+      ["line", "path.chart-line"],
+    ];
+    for (const [t, sel] of types) {
+      await page.locator(".csv-chart-type").selectOption(t);
+      await expect(page.locator(`svg.csv-chart ${sel}`).first()).toBeVisible();
+    }
+  });
+
+  test("CSV charts: color-by legend, stacked bars and line groups", async ({ page }) => {
+    await page.goto("/colors.csv");
+    await page.locator(".view-toggle button", { hasText: "Charts" }).click();
+    await expect(page.locator("svg.csv-chart")).toBeVisible();
+
+    // color-by: three categories in the palette legend
+    await page.locator(".csv-chart-color").selectOption({ label: "category" });
+    await expect(page.locator(".chart-legend-item")).toHaveCount(3);
+    await expect(page.locator(".chart-legend-item", { hasText: "warm" })).toBeVisible();
+
+    // stacked bars need a colour column and show one rect per (bucket, colour)
+    await page.locator(".csv-chart-type").selectOption("stacked");
+    await expect(page.locator("svg.csv-chart rect.chart-rect").first()).toBeVisible();
+
+    // line chart with colour-by: one path per colour group
+    await page.locator(".csv-chart-type").selectOption("line");
+    await expect(page.locator("path.chart-line")).toHaveCount(3);
+  });
+
+  test("CSV charts render the filtered row set", async ({ page }) => {
+    await page.goto("/colors.csv");
+    // Filter before opening charts
+    await page.locator(".csv-filter-col").selectOption({ label: "category" });
+    await page.locator(".csv-filter-op").selectOption("contains");
+    await page.locator(".csv-filter-value").fill("warm");
+    await page.locator(".csv-filter-add").click();
+    await page.locator(".view-toggle button", { hasText: "Charts" }).click();
+
+    await expect(page.locator(".csv-chart-note")).toHaveText(/plotting 11 of 30 rows/);
+    // The 11 warm rows map to 11 buckets on the default X column (id).
+    await expect(page.locator("svg.csv-chart rect.chart-rect")).toHaveCount(11);
+
+    // Removing the filter while the chart is open refreshes it live
+    await page.locator(".csv-filter-chip", { hasText: "category" }).click();
+    await expect(page.locator(".csv-chart-note")).toHaveText(/plotting 30 of 30 rows/);
+  });
+
   test("URL updates with ?view=code when switching to code view", async ({ page }) => {
     await page.goto("/");
     await page.locator(".tree-item .label", { hasText: "hello.md" }).click();

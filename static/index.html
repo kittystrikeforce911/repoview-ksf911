@@ -1057,6 +1057,81 @@
                 border-radius: 6px;
                 overflow: auto;
             }
+            .csv-chart-view {
+                margin-bottom: 16px;
+            }
+            .csv-chart-bar .csv-chart-note {
+                margin-left: auto;
+                font-size: 12px;
+                color: var(--rv-text-secondary);
+                font-variant-numeric: tabular-nums;
+            }
+            .csv-chart-box {
+                border: 1px solid var(--rv-border);
+                border-radius: 6px;
+                background: var(--rv-bg);
+                padding: 8px;
+                overflow: hidden;
+            }
+            svg.csv-chart {
+                display: block;
+                width: 100%;
+                height: auto;
+                max-height: 480px;
+            }
+            .chart-tick,
+            .chart-label {
+                font-size: 11px;
+                fill: var(--rv-text-secondary);
+                font-family:
+                    ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+                    monospace;
+            }
+            .chart-center {
+                font-size: 20px;
+                font-weight: 600;
+                fill: var(--rv-text);
+            }
+            .chart-rect,
+            .chart-slice,
+            .chart-dot {
+                opacity: 0.92;
+            }
+            .chart-rect:hover,
+            .chart-slice:hover,
+            .chart-dot:hover {
+                opacity: 1;
+                filter: brightness(1.08);
+            }
+            .chart-legend {
+                display: flex;
+                align-items: center;
+                gap: 14px;
+                flex-wrap: wrap;
+                padding: 4px 2px 8px;
+            }
+            .chart-legend:empty {
+                display: none;
+            }
+            .chart-legend-item {
+                display: inline-flex;
+                align-items: center;
+                gap: 6px;
+                font-size: 12px;
+                color: var(--rv-text-secondary);
+            }
+            .chart-legend-item i {
+                width: 10px;
+                height: 10px;
+                border-radius: 3px;
+                display: inline-block;
+            }
+            .csv-chart-empty {
+                padding: 48px 16px;
+                text-align: center;
+                color: var(--rv-text-secondary);
+                font-size: 13px;
+            }
             .csv-table table {
                 border-collapse: collapse;
                 width: 100%;
@@ -3663,15 +3738,209 @@
                     // Create toggle
                     var toggle = document.createElement("span");
                     toggle.className = "view-toggle";
+                    var wantCharts = getViewParam() === "charts";
                     var btnTable = document.createElement("button");
                     btnTable.textContent = "Table";
-                    btnTable.className = wantRecords ? "" : "active";
+                    btnTable.className = wantRecords || wantCharts ? "" : "active";
                     var btnRecords = document.createElement("button");
                     btnRecords.textContent = "Records";
                     btnRecords.className = wantRecords ? "active" : "";
+                    var btnCharts = document.createElement("button");
+                    btnCharts.textContent = "Charts";
+                    btnCharts.className = wantCharts ? "active" : "";
                     toggle.appendChild(btnTable);
                     toggle.appendChild(btnRecords);
+                    toggle.appendChild(btnCharts);
                     showFileHeaderBar(toggle, null);
+
+                    var csvActiveView = wantRecords ? "records" : wantCharts ? "charts" : "table";
+
+                    /* ── Charts view ── config bar + one hand-rolled SVG ── */
+                    var chartBar = document.createElement("div");
+                    chartBar.className = "csv-filter-bar csv-chart-bar";
+
+                    var chartTypeSel = document.createElement("select");
+                    chartTypeSel.className = "csv-chart-type";
+                    [
+                        ["bar", "Bar"],
+                        ["hbar", "Bar (horizontal)"],
+                        ["stacked", "Stacked bar"],
+                        ["line", "Line"],
+                        ["area", "Area"],
+                        ["scatter", "Scatter"],
+                        ["pie", "Pie"],
+                        ["donut", "Donut"],
+                    ].forEach(function (p) {
+                        var o = document.createElement("option");
+                        o.value = p[0];
+                        o.textContent = p[1];
+                        chartTypeSel.appendChild(o);
+                    });
+
+                    var chartXSel = document.createElement("select");
+                    chartXSel.className = "csv-chart-x";
+                    var chartMSel = document.createElement("select");
+                    chartMSel.className = "csv-chart-measure";
+                    var chartAggSel = document.createElement("select");
+                    chartAggSel.className = "csv-chart-agg";
+                    ["sum", "avg", "min", "max", "count"].forEach(function (a) {
+                        var o = document.createElement("option");
+                        o.value = a;
+                        o.textContent = a === "count" ? "count (rows)" : a;
+                        chartAggSel.appendChild(o);
+                    });
+                    var chartBySel = document.createElement("select");
+                    chartBySel.className = "csv-chart-color";
+
+                    var chartNote = document.createElement("span");
+                    chartNote.className = "csv-chart-note";
+
+                    var chartLegend = document.createElement("div");
+                    chartLegend.className = "chart-legend";
+
+                    var chartBox = document.createElement("div");
+                    chartBox.className = "csv-chart-box";
+
+                    var chartView = document.createElement("div");
+                    chartView.className = "csv-chart-view";
+                    chartView.appendChild(chartBar);
+                    chartView.appendChild(chartLegend);
+                    chartView.appendChild(chartBox);
+
+                    function fillColumnSelects() {
+                        var parsed = getParsedCSV();
+                        var headers = parsed.headers;
+                        [chartXSel, chartMSel, chartBySel].forEach(function (
+                            sel,
+                        ) {
+                            sel.innerHTML = "";
+                        });
+                        var numericCols = [];
+                        headers.forEach(function (h, i) {
+                            if (hasNumericCells(parsed.rows, i)) {
+                                numericCols.push(i);
+                            }
+                            var label = h == null || h === "" ? "column " + (i + 1) : String(h);
+                            var ox = document.createElement("option");
+                            ox.value = String(i);
+                            ox.textContent = label;
+                            chartXSel.appendChild(ox);
+                            var om = document.createElement("option");
+                            om.value = String(i);
+                            om.textContent = label;
+                            chartMSel.appendChild(om);
+                            var ob = document.createElement("option");
+                            ob.value = String(i);
+                            ob.textContent = label;
+                            chartBySel.appendChild(ob);
+                        });
+                        // Measure list: numeric columns only.
+                        for (
+                            var mi = chartMSel.options.length - 1;
+                            mi >= 0;
+                            mi--
+                        ) {
+                            if (!hasNumericCells(
+                                parsed.rows,
+                                parseInt(chartMSel.options[mi].value, 10),
+                            )) {
+                                chartMSel.remove(mi);
+                            }
+                        }
+                        var blank = document.createElement("option");
+                        blank.value = "";
+                        blank.textContent = "(none)";
+                        chartBySel.appendChild(blank);
+                        // Defaults on first open.
+                        if (!chartCfg) {
+                            chartCfg = {
+                                type: "bar",
+                                x: headers.length ? 0 : null,
+                                m: numericCols.length ? numericCols[0] : null,
+                                agg: "sum",
+                                by: null,
+                            };
+                        }
+                        if (chartXSel.querySelector('option[value="' + chartCfg.x + '"]')) {
+                            chartXSel.value = String(chartCfg.x);
+                        } else if (chartXSel.options.length) {
+                            chartXSel.selectedIndex = 0;
+                            chartCfg.x = parseInt(chartXSel.value, 10);
+                        }
+                        if (
+                            chartCfg.m != null &&
+                            chartMSel.querySelector('option[value="' + chartCfg.m + '"]')
+                        ) {
+                            chartMSel.value = String(chartCfg.m);
+                        } else if (chartMSel.options.length) {
+                            chartMSel.selectedIndex = 0;
+                            chartCfg.m = parseInt(chartMSel.value, 10);
+                        } else {
+                            chartCfg.m = null;
+                        }
+                    }
+
+                    var chartCfg = null;
+
+                    function renderChartInto() {
+                        var parsed = getParsedCSV();
+                        fillColumnSelects();
+                        chartTypeSel.value = chartCfg.type;
+                        if (chartXSel.querySelector('option[value="' + chartCfg.x + '"]')) {
+                            chartXSel.value = String(chartCfg.x);
+                        }
+                        if (chartCfg.m != null && chartMSel.querySelector('option[value="' + chartCfg.m + '"]')) {
+                            chartMSel.value = String(chartCfg.m);
+                        }
+                        chartAggSel.value = chartCfg.agg;
+                        chartBySel.value = chartCfg.by == null ? "" : String(chartCfg.by);
+
+                        var indices = csvFilteredIndices(
+                            parsed.rows,
+                            csvFilters,
+                            csvFilterMode,
+                        );
+                        var res = renderCSVChart(parsed, indices, chartCfg);
+                        chartLegend.innerHTML = res.legend || "";
+                        if (res.empty) {
+                            chartBox.innerHTML =
+                                '<div class="csv-chart-empty">' + esc(res.empty) + "</div>";
+                            chartNote.textContent = "";
+                            return;
+                        }
+                        chartBox.innerHTML = res.svg;
+                        var plotted = indices.length;
+                        chartNote.textContent =
+                            "plotting " + plotted + " of " + parsed.rows.length + " rows";
+                    }
+
+                    chartTypeSel.onchange = function () {
+                        chartCfg.type = chartTypeSel.value;
+                        renderChartInto();
+                    };
+                    chartXSel.onchange = function () {
+                        chartCfg.x = parseInt(chartXSel.value, 10);
+                        renderChartInto();
+                    };
+                    chartMSel.onchange = function () {
+                        chartCfg.m = chartMSel.value === "" ? null : parseInt(chartMSel.value, 10);
+                        renderChartInto();
+                    };
+                    chartAggSel.onchange = function () {
+                        chartCfg.agg = chartAggSel.value;
+                        renderChartInto();
+                    };
+                    chartBySel.onchange = function () {
+                        chartCfg.by = chartBySel.value === "" ? null : parseInt(chartBySel.value, 10);
+                        renderChartInto();
+                    };
+
+                    chartBar.appendChild(chartTypeSel);
+                    chartBar.appendChild(chartXSel);
+                    chartBar.appendChild(chartMSel);
+                    chartBar.appendChild(chartAggSel);
+                    chartBar.appendChild(chartBySel);
+                    chartBar.appendChild(chartNote);
 
                     function renderChips() {
                         chipsWrap.innerHTML = "";
@@ -3699,14 +3968,19 @@
                                 (f.op === "empty" || f.op === "not-empty"
                                     ? ""
                                     : "<code>" + esc(f.value) + "</code>");
+                            function removeFilter() {
+                                csvFilters.splice(idx, 1);
+                                renderChips();
+                                applyFilters();
+                            }
+                            // Clicking the chip (or its ✕) removes the filter.
+                            chip.onclick = removeFilter;
                             var xbtn = document.createElement("span");
                             xbtn.className = "csv-filter-chip-x";
                             xbtn.textContent = "✕";
                             xbtn.onclick = function (e) {
                                 e.stopPropagation();
-                                csvFilters.splice(idx, 1);
-                                renderChips();
-                                applyFilters();
+                                removeFilter();
                             };
                             chip.appendChild(xbtn);
                             chipsWrap.appendChild(chip);
@@ -3746,6 +4020,9 @@
                             countEl.style.display = "none";
                         }
                         bindRowLinkClicks();
+                        if (csvActiveView === "charts") {
+                            renderChartInto();
+                        }
                     }
 
                     function showRecords() {
@@ -3776,16 +4053,40 @@
 
                     function showTable() {
                         area.innerHTML = "";
+                        // The filter toolbar and chips live inside csvView in
+                        // the table view; showCharts() borrows them so the
+                        // row set stays editable while charts are open.
+                        csvView.insertBefore(filterBar, csvTableEl);
+                        csvView.insertBefore(chipsWrap, csvTableEl);
                         area.appendChild(csvView);
                         btnTable.className = "active";
                         btnRecords.className = "";
+                        btnCharts.className = "";
+                        csvActiveView = "table";
                         bindRowLinkClicks();
+                    }
+
+                    function showCharts() {
+                        area.innerHTML = "";
+                        // Mount the shared filter toolbar + chips above the
+                        // chart config so filters can be edited in place and
+                        // charts re-render live via applyFilters().
+                        chartView.insertBefore(filterBar, chartBar);
+                        chartView.insertBefore(chipsWrap, chartBar);
+                        area.appendChild(chartView);
+                        btnTable.className = "";
+                        btnRecords.className = "";
+                        btnCharts.className = "active";
+                        csvActiveView = "charts";
+                        renderChartInto();
                     }
 
                     function switchToRecordsView(recordIndex) {
                         showRecords();
                         btnRecords.className = "active";
                         btnTable.className = "";
+                        btnCharts.className = "";
+                        csvActiveView = "records";
                         setViewParam("records");
                         setRecordParam(recordIndex);
                         setTimeout(function () {
@@ -3817,7 +4118,14 @@
                         showRecords();
                         btnRecords.className = "active";
                         btnTable.className = "";
+                        btnCharts.className = "";
+                        csvActiveView = "records";
                         setViewParam("records");
+                    };
+                    btnCharts.onclick = function () {
+                        showCharts();
+                        setViewParam("charts");
+                        setRecordParam(null);
                     };
 
                     renderChips();
@@ -3825,6 +4133,8 @@
 
                     if (wantRecords) {
                         showRecords();
+                    } else if (getViewParam() === "charts") {
+                        showCharts();
                     } else {
                         bindRowLinkClicks();
                     }
@@ -4716,6 +5026,712 @@
                     if (match) out.push(j);
                 }
                 return out;
+            }
+
+            /* ── CSV charts (hand-rolled SVG, no deps) ────────────────── */
+
+            var CSV_CHART_COLORS = [
+                "#0969da", "#cf6a0c", "#1a7f37", "#cf222e", "#8250df",
+                "#953800", "#0e8a8a", "#57606a", "#b359c6", "#6e7f1e",
+            ];
+
+            function chartTrunc(s, n) {
+                s = String(s);
+                return s.length > n ? s.slice(0, n - 1) + "…" : s;
+            }
+
+            function fmtChartNum(v) {
+                if (!isFinite(v)) return "0";
+                var abs = Math.abs(v),
+                    s;
+                if (abs >= 1e9) s = (v / 1e9).toFixed(1).replace(/\.0$/, "") + "B";
+                else if (abs >= 1e6) s = (v / 1e6).toFixed(1).replace(/\.0$/, "") + "M";
+                else if (abs >= 1e4) s = (v / 1e3).toFixed(1).replace(/\.0$/, "") + "k";
+                else if (abs >= 100) s = String(Math.round(v));
+                else if (abs >= 10) s = String(Math.round(v * 10) / 10);
+                else s = String(Math.round(v * 100) / 100);
+                return s;
+            }
+
+            function niceChartMax(v) {
+                if (v <= 0) return 1;
+                var exp = Math.floor(Math.log(v) / Math.LN10);
+                var f = v / Math.pow(10, exp);
+                var nf =
+                    f <= 1 ? 1 : f <= 2 ? 2 : f <= 2.5 ? 2.5 : f <= 5 ? 5 : 10;
+                return nf * Math.pow(10, exp);
+            }
+
+            function csvAggApply(values, agg) {
+                if (!values.length) return 0;
+                switch (agg) {
+                    case "count":
+                        return values.length;
+                    case "avg":
+                        return values.reduce(function (a, b) { return a + b; }, 0) / values.length;
+                    case "min":
+                        return Math.min.apply(null, values);
+                    case "max":
+                        return Math.max.apply(null, values);
+                    default:
+                        return values.reduce(function (a, b) { return a + b; }, 0);
+                }
+            }
+
+            // hasNumericCells reports whether any cell in the column parses
+            // as a finite number — used to build the measure column list and
+            // to validate chart data.
+            function hasNumericCells(rows, col) {
+                for (var i = 0; i < rows.length; i++) {
+                    var v = parseFloat(rows[i].cells[col]);
+                    if (!isNaN(v) && isFinite(v)) return true;
+                }
+                return false;
+            }
+
+            // csvChartGroups buckets the filtered rows of a CSV by the chart's
+            // X column (optionally crossed with a color-by column) and fills
+            // each cell with the measure values to aggregate later.
+            // Rows without a numeric measure are skipped unless agg=count
+            // (count buckets every row).
+            function csvChartGroups(parsed, indices, cfg) {
+                var buckets = {};
+                var order = [];
+                var skipped = 0;
+                for (var i = 0; i < indices.length; i++) {
+                    var row = parsed.rows[indices[i]];
+                    var key = String(row.cells[cfg.x] == null ? "" : row.cells[cfg.x]).trim();
+                    if (key === "") key = "(blank)";
+                    var gkey = "";
+                    if (cfg.by != null) {
+                        gkey = String(row.cells[cfg.by] == null ? "" : row.cells[cfg.by]).trim();
+                        if (gkey === "") gkey = "(blank)";
+                    }
+                    var mVal = parseFloat(row.cells[cfg.m]);
+                    var hasNum = !isNaN(mVal) && isFinite(mVal);
+                    if (!hasNum && cfg.agg !== "count") {
+                        skipped++;
+                        continue;
+                    }
+                    var b = buckets[key];
+                    if (!b) {
+                        b = buckets[key] = { key: key, xNum: parseFloat(key), groups: {} };
+                        order.push(key);
+                    }
+                    if (!b.groups[gkey]) b.groups[gkey] = [];
+                    b.groups[gkey].push(cfg.agg === "count" ? 1 : mVal);
+                }
+                // Detect numeric X for line/area/scatter ordering.
+                var numericX = order.length > 0 && order.every(function (k) {
+                    var v = parseFloat(k);
+                    return !isNaN(v) && isFinite(v) && k !== "";
+                });
+                return {
+                    buckets: order.map(function (k) {
+                        return buckets[k];
+                    }),
+                    numericX: numericX,
+                    skipped: skipped,
+                };
+            }
+
+            // chartArcPath draws an annular sector between r0 (0 = pie) and
+            // r1 centred on (cx,cy) from angle a0 to a1 (radians, clockwise).
+            function chartArcPath(cx, cy, r0, r1, a0, a1) {
+                var large = a1 - a0 > Math.PI ? 1 : 0;
+                var x0 = cx + Math.cos(a0) * r1, y0 = cy + Math.sin(a0) * r1;
+                var x1 = cx + Math.cos(a1) * r1, y1 = cy + Math.sin(a1) * r1;
+                if (r0 <= 0) {
+                    if (a1 - a0 >= 2 * Math.PI - 0.001) {
+                        // Full circle: two half arcs.
+                        return (
+                            "M " + cx + " " + cy +
+                            " L " + (cx - r1).toFixed(2) + " " + cy.toFixed(2) +
+                            " A " + r1 + " " + r1 + " 0 1 1 " + (cx + r1).toFixed(2) + " " + cy.toFixed(2) +
+                            " A " + r1 + " " + r1 + " 0 1 1 " + (cx - r1).toFixed(2) + " " + cy.toFixed(2) +
+                            " Z"
+                        );
+                    }
+                    return (
+                        "M " + cx + " " + cy +
+                        " L " + x0.toFixed(2) + " " + y0.toFixed(2) +
+                        " A " + r1 + " " + r1 + " 0 " + large + " 1 " + x1.toFixed(2) + " " + y1.toFixed(2) +
+                        " Z"
+                    );
+                }
+                var xi1 = cx + Math.cos(a1) * r0, yi1 = cy + Math.sin(a1) * r0;
+                var xi0 = cx + Math.cos(a0) * r0, yi0 = cy + Math.sin(a0) * r0;
+                return (
+                    "M " + x0.toFixed(2) + " " + y0.toFixed(2) +
+                    " A " + r1 + " " + r1 + " 0 " + large + " 1 " + x1.toFixed(2) + " " + y1.toFixed(2) +
+                    " L " + xi1.toFixed(2) + " " + yi1.toFixed(2) +
+                    " A " + r0 + " " + r0 + " 0 " + large + " 0 " + xi0.toFixed(2) + " " + yi0.toFixed(2) +
+                    " Z"
+                );
+            }
+
+            function chartGridY(M, plotH, maxV, plotW) {
+                var out = "";
+                for (var g = 0; g <= 4; g++) {
+                    var v = (maxV * g) / 4;
+                    var y = M.t + plotH - (v / maxV) * plotH;
+                    out +=
+                        '<line x1="' + M.l + '" y1="' + y.toFixed(2) +
+                        '" x2="' + (M.l + plotW) + '" y2="' + y.toFixed(2) +
+                        '" style="stroke:var(--rv-border);stroke-width:1"/>' +
+                        '<text x="' + (M.l - 6) + '" y="' + (y + 4).toFixed(2) +
+                        '" text-anchor="end" class="chart-tick">' +
+                        fmtChartNum(v) + "</text>";
+                }
+                return out;
+            }
+
+            function chartXAxisLine(M, plotW, plotH) {
+                return (
+                    '<line x1="' + M.l + '" y1="' + (M.t + plotH) +
+                    '" x2="' + (M.l + plotW) + '" y2="' + (M.t + plotH) +
+                    '" style="stroke:var(--rv-text-tertiary);stroke-width:1"/>'
+                );
+            }
+
+            function svgOpen(cls, title) {
+                return (
+                    '<svg class="csv-chart ' + cls + '" viewBox="0 0 860 420" ' +
+                    'preserveAspectRatio="xMidYMid meet" role="img" aria-label="' +
+                    esc(title) + '">'
+                );
+            }
+
+            function chartGroupColor(gkeys, legend) {
+                if (!legend.length) return CSV_CHART_COLORS[0];
+                for (var i = 0; i < legend.length; i++) {
+                    if (legend[i].key === gkeys) return legend[i].color;
+                }
+                return CSV_CHART_COLORS[0];
+            }
+
+            // Grouped-bar geometry shared by bar / stacked. cfg carries the
+            // real aggregation (agg) plus the layout mode: "single" = one
+            // untinted bar per X bucket, "group" = a bar per colour entry,
+            // "stack" = colour segments stacked on one bar. The axis max is
+            // computed from the same aggregated numbers the bars draw, so
+            // the scale stays consistent without a colour column too.
+            function renderCSVGroupedBars(buckets, legend, cfg, opts) {
+                var W = 860, H = 420, M = { l: 56, r: 20, t: 20, b: 96 };
+                var plotW = W - M.l - M.r, plotH = H - M.t - M.b;
+                var gkeys = legend.map(function (l) { return l.key; });
+                var mode = cfg.mode || "single";
+                // Compute per-bucket values, derive the axis max.
+                var rows = buckets.map(function (b) {
+                    if (mode === "single") {
+                        var all = b.groups[""] || [];
+                        return all.length ? [csvAggApply(all, cfg.agg)] : [];
+                    }
+                    return gkeys
+                        .filter(function (g) {
+                            return b.groups[g] != null;
+                        })
+                        .map(function (g) {
+                            return csvAggApply(b.groups[g], cfg.agg);
+                        });
+                });
+                var maxV = 0;
+                rows.forEach(function (vals) {
+                    if (mode === "stack") {
+                        var t = vals.reduce(function (a, b) { return a + b; }, 0);
+                        if (t > maxV) maxV = t;
+                    } else {
+                        vals.forEach(function (v) {
+                            if (v > maxV) maxV = v;
+                        });
+                    }
+                });
+                maxV = niceChartMax(maxV);
+                var step = plotW / buckets.length;
+                var bw = Math.min(56, Math.max(4, step * 0.62));
+                var parts = chartGridY(M, plotH, maxV, plotW);
+                buckets.forEach(function (b, bi) {
+                    if (mode === "single") {
+                        var v = rows[bi][0];
+                        var h = Math.min(1, v / maxV) * plotH;
+                        if (h > 0) {
+                            var x = M.l + bi * step + (step - bw) / 2;
+                            var y = M.t + plotH - h;
+                            parts +=
+                                '<rect class="chart-rect" x="' + x.toFixed(2) + '" y="' + y.toFixed(2) +
+                                '" width="' + bw.toFixed(2) + '" height="' + h.toFixed(2) +
+                                '" fill="' + CSV_CHART_COLORS[0] + '">' +
+                                "<title>" + esc(b.key + ": " + fmtChartNum(v)) + "</title></rect>";
+                        }
+                    } else {
+                        // Grouped (not stacked) or trimmed stacked bars; per
+                        // segment we re-aggregate the same numbers used by
+                        // the max above.
+                        var yBase = M.t + plotH;
+                        var yAcc = yBase;
+                        gkeys
+                            .filter(function (g) {
+                                return b.groups[g] != null;
+                            })
+                            .forEach(function (g, gi) {
+                                var v = csvAggApply(b.groups[g], cfg.agg);
+                                if (v <= 0) return;
+                                var color = chartGroupColor(g, legend);
+                                if (mode === "stack") {
+                                    var hS = Math.min(yAcc - M.t, (v / maxV) * plotH);
+                                    yAcc -= hS;
+                                    parts +=
+                                        '<rect class="chart-rect" x="' + (M.l + bi * step + (step - bw) / 2).toFixed(2) +
+                                        '" y="' + yAcc.toFixed(2) + '" width="' + bw.toFixed(2) +
+                                        '" height="' + hS.toFixed(2) + '" fill="' + color + '">' +
+                                        "<title>" + esc(b.key + " / " + g + ": " + fmtChartNum(v)) + "</title></rect>";
+                                } else {
+                                    var bwG = Math.min(24, Math.max(3, (bw / gkeys.length) * 0.9));
+                                    var xG = M.l + bi * step + (step - bw) / 2 + gi * ((bw - bwG) / (gkeys.length - 1 || 1));
+                                    var hG = (Math.min(1, v / maxV)) * plotH;
+                                    parts +=
+                                        '<rect class="chart-rect" x="' + xG.toFixed(2) + '" y="' + (yBase - hG).toFixed(2) +
+                                        '" width="' + bwG.toFixed(2) + '" height="' + hG.toFixed(2) +
+                                        '" fill="' + color + '">' +
+                                        "<title>" + esc(b.key + " / " + g + ": " + fmtChartNum(v)) + "</title></rect>";
+                                }
+                            });
+                    }
+                    var lx = M.l + bi * step + step / 2;
+                    var ly = M.t + plotH + 6;
+                    parts +=
+                        '<text transform="rotate(-40 ' + lx.toFixed(2) + " " + ly.toFixed(2) + ')" x="' +
+                        lx.toFixed(2) + '" y="' + (ly + 10).toFixed(2) +
+                        '" text-anchor="end" class="chart-tick">' +
+                        esc(chartTrunc(b.key, 16)) + "</text>";
+                });
+                parts += chartXAxisLine(M, plotW, plotH);
+                return parts;
+            }
+
+            // buildPieSVG draws a pie (donut=false) or donut from slice
+            // objects { key, v } whose values are already aggregated.
+            function buildPieSVG(slices, agg, donut) {
+                var W = 860, H = 420;
+                var cx = W / 2, cy = H / 2 + 6;
+                var r1 = Math.min(W, H) / 2 - 56;
+                var r0 = donut ? r1 * 0.58 : 0;
+                var usable = slices.filter(function (s) { return s.v > 0; });
+                var total = usable.reduce(function (t, s) { return t + s.v; }, 0);
+                if (total <= 0) {
+                    return {
+                        parts:
+                            '<text x="' + cx + '" y="' + cy +
+                            '" text-anchor="middle" class="chart-center">nothing to plot</text>',
+                    };
+                }
+                var parts = "";
+                var a = -Math.PI / 2;
+                usable.forEach(function (s, i) {
+                    var a1 = a + (s.v / total) * 2 * Math.PI;
+                    var color = CSV_CHART_COLORS[i % CSV_CHART_COLORS.length];
+                    parts +=
+                        '<path class="chart-slice" d="' +
+                        chartArcPath(cx, cy, r0, r1, a, a1 - 0.004) +
+                        '" fill="' + color + '"><title>' +
+                        esc(s.key + ": " + fmtChartNum(s.v) +
+                            " (" + Math.round((s.v / total) * 100) + "%)") +
+                        "</title></path>";
+                    a = a1;
+                });
+                if (donut) {
+                    parts +=
+                        '<text x="' + cx + '" y="' + (cy + 5) +
+                        '" text-anchor="middle" class="chart-center">' +
+                        esc(fmtChartNum(total) + (agg === "count" ? " rows" : "")) +
+                        "</text>";
+                }
+                return { parts: parts };
+            }
+
+            // renderCSVHBarChart draws horizontal bars from pre-aggregated
+            // rows [{ key, value }], labels left, value right of each bar.
+            function renderCSVHBarChart(rows, agg) {
+                var W = 860, H = 420;
+                var labelX = 160, barX = 170;
+                var barRight = W - 78;
+                var n = rows.length;
+                var rowH = Math.min(30, (H - 60) / Math.max(1, n));
+                var top = (H - n * rowH) / 2 + 10;
+                var maxV = niceChartMax(
+                    rows.reduce(function (m, r) { return Math.max(m, r.value); }, 0),
+                );
+                var parts = "";
+                if (maxV > 0) {
+                    for (var g = 1; g <= 4; g++) {
+                        var vx = barX + ((barRight - barX) * g) / 4;
+                        parts +=
+                            '<text x="' + vx.toFixed(2) + '" y="' + (top + n * rowH + 18).toFixed(2) +
+                            '" text-anchor="middle" class="chart-tick">' +
+                            fmtChartNum((maxV * g) / 4) + "</text>";
+                    }
+                }
+                rows.forEach(function (r, i) {
+                    var y = top + i * rowH;
+                    var cy = y + rowH / 2;
+                    var bw = Math.min(1, Math.abs(r.value) / maxV) * (barRight - barX);
+                    parts +=
+                        '<text x="' + labelX + '" y="' + (cy + 4).toFixed(2) +
+                        '" text-anchor="end" class="chart-label">' +
+                        esc(chartTrunc(r.key, 22)) + "</text>";
+                    if (bw > 0) {
+                        parts +=
+                            '<rect class="chart-rect" x="' + barX + '" y="' + (cy - Math.min(14, rowH * 0.36)).toFixed(2) +
+                            '" width="' + bw.toFixed(2) + '" height="' +
+                            Math.min(28, rowH * 0.72).toFixed(2) +
+                            '" fill="' + CSV_CHART_COLORS[0] + '"><title>' +
+                            esc(r.key + ": " + fmtChartNum(r.value)) + "</title></rect>";
+                        parts +=
+                            '<text x="' + (barX + bw + 6).toFixed(2) + '" y="' + (cy + 4).toFixed(2) +
+                            '" class="chart-tick">' + fmtChartNum(r.value) + "</text>";
+                    }
+                });
+                parts +=
+                    '<line x1="' + barX + '" y1="' + (top - 10).toFixed(2) + '" x2="' + barX + '" y2="' +
+                    (top + n * rowH + 2).toFixed(2) +
+                    '" style="stroke:var(--rv-text-tertiary);stroke-width:1"/>';
+                return parts;
+            }
+
+            function renderCSVLineChart(g, legend, cfg, area) {
+                var buckets = g.buckets;
+                var W = 860, H = 420, M = { l: 56, r: 20, t: 20, b: 60 };
+                var plotW = W - M.l - M.r, plotH = H - M.t - M.b;
+                var gkeys = legend.length ? legend.map(function (l) { return l.key; }) : [""];
+                var order = buckets.map(function (b, i) { return { b: b, i: i }; });
+                if (g.numericX) {
+                    order.sort(function (x, y) { return x.b.xNum - y.b.xNum; });
+                }
+                var series = gkeys.map(function (g) {
+                    return {
+                        key: g,
+                        pts: [],
+                    };
+                });
+                var maxV = 0;
+                series.forEach(function (s) {
+                    order.forEach(function (o) {
+                        var v = o.b.groups[s.key] ? csvAggApply(o.b.groups[s.key], cfg.agg) : 0;
+                        s.pts.push({ x: o.i, v: v, key: o.b.key });
+                        if (v > maxV) maxV = v;
+                    });
+                });
+                maxV = niceChartMax(maxV);
+                var stepX = plotW / Math.max(1, order.length - 1) || plotW;
+                if (order.length === 1) stepX = plotW / 2;
+                var parts = chartGridY(M, plotH, maxV, plotW);
+                // X ticks: first/middle/last
+                var showXIdx = {};
+                if (order.length > 0) {
+                    showXIdx[0] = true;
+                    showXIdx[order.length - 1] = true;
+                    if (order.length > 2) showXIdx[Math.floor(order.length / 2)] = true;
+                    if (order.length > 5) {
+                        showXIdx[Math.floor(order.length / 4)] = true;
+                        showXIdx[order.length - 1 - Math.floor(order.length / 4)] = true;
+                    }
+                }
+                series.forEach(function (s, si) {
+                    var color = s.key === "" ? CSV_CHART_COLORS[0] : chartGroupColor(s.key, legend);
+                    var dLine = "";
+                    s.pts.forEach(function (p, pi) {
+                        var x = M.l + pi * (stepX || plotW / Math.max(1, s.pts.length - 1));
+                        var y = M.t + plotH - (Math.min(1, p.v / maxV)) * plotH;
+                        dLine += (pi === 0 ? "M " : " L ") + x.toFixed(2) + " " + y.toFixed(2);
+                        if (showXIdx[pi]) {
+                            parts +=
+                                '<text x="' + x.toFixed(2) + '" y="' + (M.t + plotH + 14) +
+                                '" text-anchor="middle" class="chart-tick">' +
+                                esc(chartTrunc(p.key, 10)) + "</text>";
+                        }
+                        if (s.pts.length === 1) {
+                            parts +=
+                                '<circle class="chart-dot" cx="' + x.toFixed(2) + '" cy="' + y.toFixed(2) +
+                                '" r="4" fill="' + color + '"><title>' + esc(p.key + ": " + fmtChartNum(p.v)) +
+                                "</title></circle>";
+                        }
+                    });
+                    if (area && s.pts.length) {
+                        var lastX = M.l + (s.pts.length - 1) * (stepX || plotW / Math.max(1, s.pts.length - 1));
+                        var pPath = dLine + " L " + lastX.toFixed(2) + " " + (M.t + plotH) +
+                            " L " + M.l + " " + (M.t + plotH) + " Z";
+                        parts +=
+                            '<path class="chart-area" d="' + pPath + '" fill="' + color +
+                            '" style="fill-opacity:0.14;stroke:none"/>';
+                    }
+                    parts +=
+                        '<path class="chart-line" d="' + dLine + '" fill="none" stroke="' + color +
+                        '" style="stroke-width:2"/><title>' + esc(s.key === "" ? "" : s.key) + "</title></path>";
+                });
+                parts += chartXAxisLine(M, plotW, plotH);
+                return parts;
+            }
+
+            function renderCSVScatterChart(parsed, indices, cfg) {
+                var W = 860, H = 420, M = { l: 56, r: 20, t: 20, b: 52 };
+                var plotW = W - M.l - M.r, plotH = H - M.t - M.b;
+                var pts = [];
+                var minX = Infinity, maxX = -Infinity, maxY = -Infinity;
+                for (var i = 0; i < indices.length; i++) {
+                    var row = parsed.rows[indices[i]];
+                    var xv = parseFloat(row.cells[cfg.x]);
+                    var yv = parseFloat(row.cells[cfg.m]);
+                    if (isNaN(xv) || !isFinite(xv) || isNaN(yv) || !isFinite(yv)) continue;
+                    pts.push({
+                        x: xv, y: yv,
+                        gkey: cfg.by == null ? "" : String(row.cells[cfg.by] == null ? "" : row.cells[cfg.by]).trim() || "(blank)",
+                        label: row.cells[cfg.x] + " / " + row.cells[cfg.m],
+                    });
+                    if (xv < minX) minX = xv;
+                    if (xv > maxX) maxX = xv;
+                    if (yv > maxY) maxY = yv;
+                }
+                if (!pts.length) return null;
+                if (maxX === minX) { maxX = minX + 1; }
+                var niceY = niceChartMax(maxY);
+                var parts = "";
+                for (var g = 0; g <= 4; g++) {
+                    var v = (niceY * g) / 4;
+                    var y = M.t + plotH - (v / niceY) * plotH;
+                    parts +=
+                        '<line x1="' + M.l + '" y1="' + y.toFixed(2) + '" x2="' + (M.l + plotW) + '" y2="' + y.toFixed(2) +
+                        '" style="stroke:var(--rv-border);stroke-width:1"/>' +
+                        '<text x="' + (M.l - 6) + '" y="' + (y + 4).toFixed(2) + '" text-anchor="end" class="chart-tick">' +
+                        fmtChartNum(v) + "</text>";
+                }
+                // X ticks at both ends
+                var xt = [minX, (minX + maxX) / 2, maxX];
+                var sx = function (v) { return M.l + ((v - minX) / (maxX - minX)) * plotW; };
+                xt.forEach(function (v) {
+                    parts +=
+                        '<text x="' + sx(v).toFixed(2) + '" y="' + (M.t + plotH + 18) +
+                        '" text-anchor="middle" class="chart-tick">' + fmtChartNum(v) + "</text>";
+                });
+                var legend = [];
+                var groupsSeen = {};
+                pts.forEach(function (p) {
+                    if (!groupsSeen[p.gkey]) {
+                        groupsSeen[p.gkey] = true;
+                        if (legend.length < CSV_CHART_COLORS.length) {
+                            legend.push({ key: p.gkey || null, color: CSV_CHART_COLORS[legend.length] });
+                        }
+                    }
+                });
+                if (!cfg.by) legend = [];
+                pts.forEach(function (p) {
+                    var color = CSV_CHART_COLORS[0];
+                    if (cfg.by) {
+                        for (var li = 0; li < legend.length; li++) {
+                            if (legend[li].key === p.gkey) color = legend[li].color;
+                        }
+                    }
+                    var x = M.l + ((p.x - minX) / (maxX - minX)) * plotW;
+                    var y = M.t + plotH - (p.y / niceY) * plotH;
+                    parts +=
+                        '<circle class="chart-dot" cx="' + x.toFixed(2) + '" cy="' + y.toFixed(2) +
+                        '" r="4" fill="' + color + '"><title>' + esc(String(p.label) + " (" + p.gkey + ")") +
+                        "</title></circle>";
+                });
+                parts +=
+                    '<line x1="' + M.l + '" y1="' + (M.t + plotH) + '" x2="' + (M.l + plotW) + '" y2="' + (M.t + plotH) +
+                    '" style="stroke:var(--rv-text-tertiary);stroke-width:1"/>';
+                return { parts: parts, legend: legend };
+            }
+
+            // renderCSVChart builds the SVG markup for the requested chart
+            // type: { svg, legend, title } or { empty: "reason" }. Pure SVG,
+            // no libraries; data comes pre-filtered via csvFilteredIndices.
+            function renderCSVChart(parsed, indices, cfg) {
+                if (!indices.length) {
+                    return { empty: "No rows match the active filters." };
+                }
+                if (cfg.agg !== "count" && !hasNumericCells(parsed.rows, cfg.m)) {
+                    return { empty: "The measure column has no numeric values." };
+                }
+
+                function colName(ci) {
+                    return ci == null ? "" : String(parsed.headers[ci] == null ? "?" : parsed.headers[ci]);
+                }
+
+                function chartTitle() {
+                    var t;
+                    if (cfg.agg === "count") t = "row count by " + colName(cfg.x);
+                    else t = cfg.agg + "(" + colName(cfg.m) + ") by " + colName(cfg.x);
+                    if (cfg.by != null && cfg.type !== "pie" && cfg.type !== "donut") {
+                        t += " · colour: " + colName(cfg.by);
+                    }
+                    return t;
+                }
+
+                function legendFor(buckets) {
+                    var legend = [];
+                    if (cfg.by == null) return legend;
+                    var seen = {};
+                    buckets.forEach(function (b) {
+                        Object.keys(b.groups).forEach(function (gk) {
+                            if (!seen[gk]) {
+                                seen[gk] = true;
+                                if (legend.length < CSV_CHART_COLORS.length) {
+                                    legend.push({ key: gk, color: CSV_CHART_COLORS[legend.length] });
+                                }
+                            }
+                        });
+                    });
+                    return legend;
+                }
+
+                function bucketTotal(b, agg) {
+                    var t = 0;
+                    Object.keys(b.groups).forEach(function (gk) {
+                        t += csvAggApply(b.groups[gk], agg);
+                    });
+                    return t;
+                }
+
+                var type = cfg.type;
+
+                if (type === "bar" || type === "hbar") {
+                    var gBar = csvChartGroups(parsed, indices, cfg);
+                    if (!gBar.buckets.length) {
+                        return { empty: "Nothing to plot for the chosen measure." };
+                    }
+                    var legendBar = legendFor(gBar.buckets);
+                    var byAgg = cfg.agg;
+                    var rowsBar = gBar.buckets.map(function (b) {
+                        return {
+                            key: b.key,
+                            value: cfg.by == null
+                                ? csvAggApply(b.groups[""] || [], byAgg)
+                                : bucketTotal(b, byAgg),
+                        };
+                    });
+                    rowsBar.sort(function (x, y) { return y.value - x.value; });
+                    var capped = rowsBar;
+                    if (rowsBar.length > 40) {
+                        var restSum = rowsBar.slice(40).reduce(function (t, r) { return t + r.value; }, 0);
+                        capped = rowsBar.slice(0, 40);
+                        capped.push({ key: "Other", value: restSum });
+                    }
+                    var partsBar;
+                    if (type === "bar") {
+                        // Grouped bars: when a colour column is set each X
+                        // bucket shows one bar per colour entry.
+                        var bucketObjs = {};
+                        gBar.buckets.forEach(function (b) { bucketObjs[b.key] = b; });
+                        var asBuckets = capped.map(function (r) {
+                            return bucketObjs[r.key] || { key: r.key, groups: { "": [r.value] } };
+                        });
+                        partsBar = renderCSVGroupedBars(asBuckets, legendBar, {
+                            agg: byAgg,
+                            mode: legendBar.length ? "group" : "single",
+                        });
+                    } else {
+                        partsBar = renderCSVHBarChart(capped, byAgg);
+                    }
+                    return {
+                        svg: svgOpen("chart-" + type, chartTitle()) + partsBar + "</svg>",
+                        legend: legendBar.map(function (l) {
+                            return '<span class="chart-legend-item"><i style="background:' + l.color + '"></i>' +
+                                esc(String(l.key)) + "</span>";
+                        }).join(""),
+                        title: chartTitle(),
+                    };
+                }
+
+                if (type === "stacked") {
+                    if (cfg.by == null) {
+                        return { empty: "Pick a colour column to stack the bars." };
+                    }
+                    var gSt = csvChartGroups(parsed, indices, cfg);
+                    if (!gSt.buckets.length) {
+                        return { empty: "Nothing to plot for the chosen measure." };
+                    }
+                    var legendSt = legendFor(gSt.buckets);
+                    var partsSt = renderCSVGroupedBars(gSt.buckets, legendSt, {
+                        agg: cfg.agg,
+                        mode: "stack",
+                    });
+                    return {
+                        svg: svgOpen("chart-stacked", chartTitle()) + partsSt + "</svg>",
+                        legend: legendSt.map(function (l) {
+                            return '<span class="chart-legend-item"><i style="background:' + l.color + '"></i>' +
+                                esc(String(l.key)) + "</span>";
+                        }).join(""),
+                        title: chartTitle(),
+                    };
+                }
+
+                if (type === "pie" || type === "donut") {
+                    var gPie = csvChartGroups(
+                        parsed,
+                        indices,
+                        { x: cfg.x, m: cfg.m, by: null, agg: cfg.agg },
+                    );
+                    if (!gPie.buckets.length) {
+                        return { empty: "Nothing to plot for the chosen measure." };
+                    }
+                    var scored = gPie.buckets.map(function (b) {
+                        return { key: b.key, v: csvAggApply(b.groups[""] || [], cfg.agg) };
+                    });
+                    scored.sort(function (x, y) { return y.v - x.v; });
+                    var keep = scored.slice(0, 9);
+                    var restV = scored.slice(9).reduce(function (t, s) { return t + s.v; }, 0);
+                    if (restV > 0) keep.push({ key: "Other (" + (scored.length - 9) + ")", v: restV });
+                    var pie = buildPieSVG(keep, cfg.agg, type === "donut");
+                    return {
+                        svg: svgOpen("chart-" + type, chartTitle()) + pie.parts + "</svg>",
+                        legend: keep.map(function (s, i) {
+                            return '<span class="chart-legend-item"><i style="background:' +
+                                CSV_CHART_COLORS[i % CSV_CHART_COLORS.length] + '"></i>' +
+                                esc(String(s.key)) + "</span>";
+                        }).join(""),
+                        title: chartTitle(),
+                    };
+                }
+
+                if (type === "line" || type === "area") {
+                    var gLine = csvChartGroups(parsed, indices, cfg);
+                    if (!gLine.buckets.length) {
+                        return { empty: "Nothing to plot for the chosen measure." };
+                    }
+                    var legendLine = legendFor(gLine.buckets);
+                    var partsLine = renderCSVLineChart(gLine, legendLine, {
+                        agg: cfg.agg,
+                    }, type === "area");
+                    return {
+                        svg: svgOpen("chart-" + type, chartTitle()) + partsLine + "</svg>",
+                        legend: legendLine.map(function (l) {
+                            return '<span class="chart-legend-item"><i style="background:' + l.color + '"></i>' +
+                                esc(String(l.key)) + "</span>";
+                        }).join(""),
+                        title: chartTitle(),
+                    };
+                }
+
+                if (type === "scatter") {
+                    var sc = renderCSVScatterChart(parsed, indices, cfg);
+                    if (!sc) {
+                        return { empty: "Scatter needs numeric values in both the X and measure columns." };
+                    }
+                    var legendScHTML = "";
+                    (sc.legend || []).forEach(function (l) {
+                        legendScHTML +=
+                            '<span class="chart-legend-item"><i style="background:' + l.color + '"></i>' +
+                            esc(String(l.key == null ? "" : l.key)) + "</span>";
+                    });
+                    return {
+                        svg: svgOpen("chart-scatter", chartTitle()) + sc.parts + "</svg>",
+                        legend: legendScHTML,
+                        title: chartTitle(),
+                    };
+                }
+
+                return { empty: "Unknown chart type." };
             }
 
             function renderCSVRecords(headers, rows) {
