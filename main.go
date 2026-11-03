@@ -14,6 +14,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -62,6 +63,23 @@ var editorSetupURLs = map[string]string{
 	"cursor":  "https://cursor.com/docs/cli/installation",
 	"sublime": "https://www.sublimetext.com/docs/command_line.html",
 	"zed":     "https://zed.dev/features#cli",
+}
+
+// maxInlineBytes caps files rendered inline by /api/file: reading and
+// formatting larger files would buffer too much content in a single
+// request. Larger files are reported with tooLarge=true and the frontend
+// offers a Download link backed by /api/raw (which streams efficiently
+// and supports Range requests).
+var maxInlineBytes int64 = 16 << 20 // 16 MB
+
+// requireGET rejects non-GET requests to API read endpoints.
+func requireGET(w http.ResponseWriter, r *http.Request) bool {
+	if r.Method == http.MethodGet || r.Method == http.MethodHead {
+		return true
+	}
+	w.Header().Set("Allow", "GET, HEAD")
+	http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	return false
 }
 
 // TreeEntry represents a single item in the file tree.
@@ -126,7 +144,6 @@ func main() {
 	}
 
 	hub := newHub()
-	go hub.run()
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -218,6 +235,10 @@ func safePath(reqPath string) (string, error) {
 
 // handleTree returns immediate children of a directory as JSON.
 func handleTree(w http.ResponseWriter, r *http.Request) {
+	if !requireGET(w, r) {
+		return
+	}
+
 	reqPath := r.URL.Query().Get("path")
 	if reqPath == "" {
 		reqPath = "."
@@ -280,6 +301,7 @@ type FileResponse struct {
 	IsBinary   bool   `json:"isBinary,omitempty"`
 	IsJSONL    bool   `json:"isJSONL,omitempty"`
 	MimeType   string `json:"mimeType,omitempty"`
+	TooLarge   bool   `json:"tooLarge,omitempty"`
 	Size       int64  `json:"size,omitempty"`
 }
 
@@ -295,6 +317,10 @@ type JSONLResponse struct {
 
 // handleFile returns rendered file content as JSON.
 func handleFile(w http.ResponseWriter, r *http.Request) {
+	if !requireGET(w, r) {
+		return
+	}
+
 	reqPath := r.URL.Query().Get("path")
 	if reqPath == "" {
 		http.Error(w, "path required", http.StatusBadRequest)
@@ -337,6 +363,20 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 			Path:     reqPath,
 			IsJSONL:  true,
 			MimeType: "application/x-ndjson",
+			Size:     info.Size(),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
+	// Files larger than the inline cap are not read or rendered:
+	// buffer only the first bytes to describe the file as best we can.
+	if info.Size() > maxInlineBytes {
+		resp := FileResponse{
+			Name:     filepath.Base(filePath),
+			Path:     reqPath,
+			TooLarge: true,
 			Size:     info.Size(),
 		}
 		w.Header().Set("Content-Type", "application/json")
@@ -654,6 +694,10 @@ func isBinaryContent(data []byte) bool {
 
 // handleRaw serves raw file bytes with proper Content-Type for inline display.
 func handleRaw(w http.ResponseWriter, r *http.Request) {
+	if !requireGET(w, r) {
+		return
+	}
+
 	reqPath := r.URL.Query().Get("path")
 	if reqPath == "" {
 		http.Error(w, "path required", http.StatusBadRequest)
@@ -677,6 +721,10 @@ func handleRaw(w http.ResponseWriter, r *http.Request) {
 
 // handleFiles returns a flat list of all file paths for fuzzy search.
 func handleFiles(w http.ResponseWriter, r *http.Request) {
+	if !requireGET(w, r) {
+		return
+	}
+
 	var files []string
 
 	// Try git ls-files first.
@@ -825,10 +873,6 @@ func newHub() *hub {
 	return &hub{clients: make(map[*wsClient]bool)}
 }
 
-func (h *hub) run() {
-	// Hub doesn't need a goroutine loop; broadcast is called directly.
-}
-
 func (h *hub) register(c *wsClient) {
 	h.mu.Lock()
 	h.clients[c] = true
@@ -893,7 +937,24 @@ func (h *hub) notifyFile(relPath string) {
 }
 
 var upgrader = websocket.Upgrader{
-	CheckOrigin: func(r *http.Request) bool { return true },
+	CheckOrigin: checkSameOrigin,
+}
+
+// checkSameOrigin rejects cross-origin WebSocket upgrades (e.g. a web page
+// in another browser tab connecting to wss/ws on this host) while allowing
+// non-browser clients that send no Origin header. Same-origin is decided
+// by exact host match, independent of scheme (http/wss differences on
+// localhost proxies are tolerated).
+func checkSameOrigin(r *http.Request) bool {
+	origin := r.Header.Get("Origin")
+	if origin == "" {
+		return true
+	}
+	u, err := url.Parse(origin)
+	if err != nil {
+		return false
+	}
+	return u.Host == r.Host
 }
 
 func handleWS(w http.ResponseWriter, r *http.Request, h *hub, watcher *fsnotify.Watcher) {
@@ -914,6 +975,18 @@ func handleWS(w http.ResponseWriter, r *http.Request, h *hub, watcher *fsnotify.
 	go client.readPump(watcher)
 }
 
+// normalizeWatchKey canonicalizes a path so WebSocket watch keys always
+// match the slash-separated relative paths delivered by notifyFile on
+// every platform: Windows clients send backslash paths, so separators are
+// normalized to slashes before clean-up. "" stays "", the root key.
+func normalizeWatchKey(p string) string {
+	if p == "" {
+		return ""
+	}
+	p = strings.ReplaceAll(p, "\\", "/")
+	return filepath.Clean("./" + strings.TrimPrefix(p, "/"))
+}
+
 func (c *wsClient) readPump(watcher *fsnotify.Watcher) {
 	defer func() {
 		c.hub.unregister(c)
@@ -932,6 +1005,7 @@ func (c *wsClient) readPump(watcher *fsnotify.Watcher) {
 			continue
 		}
 
+		watchKey := normalizeWatchKey(req.Path)
 		absPath, err := safePath(req.Path)
 		if err != nil {
 			continue
@@ -940,10 +1014,10 @@ func (c *wsClient) readPump(watcher *fsnotify.Watcher) {
 		c.mu.Lock()
 		switch req.Action {
 		case "watch":
-			c.watched[req.Path] = true
+			c.watched[watchKey] = true
 			_ = watcher.Add(absPath)
 		case "unwatch":
-			delete(c.watched, req.Path)
+			delete(c.watched, watchKey)
 			// Don't remove from fsnotify—other clients may watch it.
 		}
 		c.mu.Unlock()
@@ -983,6 +1057,10 @@ func watchLoop(watcher *fsnotify.Watcher, h *hub) {
 
 // handleJSONL serves paginated JSONL data.
 func handleJSONL(w http.ResponseWriter, r *http.Request) {
+	if !requireGET(w, r) {
+		return
+	}
+
 	reqPath := r.URL.Query().Get("path")
 	if reqPath == "" {
 		http.Error(w, "path required", http.StatusBadRequest)
@@ -1054,7 +1132,7 @@ func countJSONLLines(filePath string) (int64, error) {
 	var count int64
 	scanner := bufio.NewScanner(file)
 	// Use larger buffer for better performance with large lines.
-	buf := make([]byte, 1024*1024) // 1MB buffer
+	buf := make([]byte, 1024*1024)    // 1MB buffer
 	scanner.Buffer(buf, 10*1024*1024) // Max 10MB per line
 
 	for scanner.Scan() {

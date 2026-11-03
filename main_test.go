@@ -637,7 +637,6 @@ func TestWebSocket(t *testing.T) {
 	setRoot(t, "testdata")
 
 	h := newHub()
-	go h.run()
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
@@ -1201,7 +1200,6 @@ func TestSPARoute_EncodedPaths(t *testing.T) {
 	}
 }
 
-
 // ── Editor endpoints tests ─────────────────────────────────────
 
 func TestHandleEditors(t *testing.T) {
@@ -1764,5 +1762,136 @@ func TestHandleFile_JSONL(t *testing.T) {
 
 	if resp.Size == 0 {
 		t.Error("expected size to be non-zero")
+	}
+}
+
+// ── API hardening tests ─────────────────────────────────────
+
+func TestRequireGET_RejectsNonGet(t *testing.T) {
+	// All read-only API endpoints must reject non-GET methods.
+	handlers := []func(w http.ResponseWriter, r *http.Request){
+		handleTree,
+		handleFile,
+		handleRaw,
+		handleFiles,
+		handleJSONL,
+	}
+	path := "/?path=hello.md"
+	for _, h := range handlers {
+		for _, method := range []string{"POST", "PUT", "DELETE"} {
+			req := httptest.NewRequest(method, path, nil)
+			w := httptest.NewRecorder()
+			h(w, req)
+			if w.Code != http.StatusMethodNotAllowed {
+				t.Errorf("%s: expected 405, got %d", method, w.Code)
+			}
+			if allow := w.Header().Get("Allow"); allow != "GET, HEAD" {
+				t.Errorf("%s: expected Allow: GET, HEAD, got %q", method, allow)
+			}
+		}
+		// GET must pass through with 200 or 4xx (not 405).
+		req := httptest.NewRequest("GET", path, nil)
+		w := httptest.NewRecorder()
+		h(w, req)
+		if w.Code == http.StatusMethodNotAllowed {
+			t.Error("GET should not be rejected by requireGET")
+		}
+	}
+}
+
+func TestCheckSameOrigin(t *testing.T) {
+	cases := []struct {
+		name   string
+		origin string
+		host   string
+		want   bool
+	}{
+		{"no origin header (non-browser client)", "", "localhost:7777", true},
+		{"matching host", "http://localhost:7777", "localhost:7777", true},
+		{"https to same routed host", "https://localhost:7777", "localhost:7777", true},
+		{"wrong host", "http://evil.example", "localhost:7777", false},
+		{"wrong port", "http://localhost:9999", "localhost:7777", false},
+		{"malformed origin", "://", "localhost:7777", false},
+	}
+	for _, c := range cases {
+		req := httptest.NewRequest("GET", "/ws", nil)
+		req.Host = c.host
+		if c.origin != "" {
+			req.Header.Set("Origin", c.origin)
+		}
+		if got := checkSameOrigin(req); got != c.want {
+			t.Errorf("%s: checkSameOrigin=%v, want %v", c.name, got, c.want)
+		}
+	}
+}
+
+func TestNormalizeWatchKey(t *testing.T) {
+	cases := map[string]string{
+		"":                        "",
+		"hello.md":                "hello.md",
+		"subdir/file.md":          "subdir/file.md",
+		"subdir\\file.md":         "subdir/file.md", // Windows backslash form
+		"./subdir/file.md":        "subdir/file.md",
+		"first/../second/file.md": "second/file.md",
+		"subdir/":                 "subdir",
+	}
+	for in, want := range cases {
+		if got := normalizeWatchKey(in); got != want {
+			t.Errorf("normalizeWatchKey(%q)=%q, want %q", in, got, want)
+		}
+	}
+}
+
+func TestWebSocket_WatchNormalizesWindowsPath(t *testing.T) {
+	h := newHub()
+	client := &wsClient{
+		hub:     h,
+		send:    make(chan []byte, 64),
+		watched: make(map[string]bool),
+	}
+	h.register(client)
+	defer h.unregister(client)
+
+	// A Windows-style watch registration must still receive notifications
+	// delivered with slash-separated relative paths.
+	client.watched[normalizeWatchKey(`subdir\hello.md`)] = true
+	h.notifyFile("subdir/hello.md")
+
+	select {
+	case <-client.send:
+	default:
+		t.Error("expected a change notification for the backslash-style watch key")
+	}
+}
+
+func TestHandleFile_TooLarge(t *testing.T) {
+	setRoot(t, "testdata")
+
+	oldCap := maxInlineBytes
+	maxInlineBytes = 16 // shrink cap for the test
+	t.Cleanup(func() { maxInlineBytes = oldCap })
+
+	req := httptest.NewRequest("GET", "/api/file?path=data.csv", nil)
+	w := httptest.NewRecorder()
+	handleFile(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var resp FileResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if !resp.TooLarge {
+		t.Error("expected tooLarge=true")
+	}
+	if resp.Content != "" {
+		t.Error("expected no inline content for oversized file")
+	}
+	if resp.Size == 0 {
+		t.Error("expected size metadata")
+	}
+	if resp.IsCSV {
+		t.Error("oversized file must not be rendered as CSV")
 	}
 }

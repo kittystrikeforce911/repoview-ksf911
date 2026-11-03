@@ -2889,6 +2889,26 @@
 
                 var area = document.getElementById("content-area");
 
+                // Files exceeding the inline size cap: offer a download
+                // through /api/raw instead of rendering.
+                if (data.tooLarge) {
+                    var bigURL = "/api/raw?path=" + encodeURIComponent(path);
+                    var bigName = data.name || path.split("/").pop();
+                    area.innerHTML =
+                        '<div class="binary-info">' +
+                        '<div class="binary-icon">&#128462;</div>' +
+                        '<div class="binary-filename">' + esc(bigName) + "</div>" +
+                        '<div class="binary-meta"><span>' + esc(formatFileSize(data.size)) + '</span><span>exceeds inline limit</span></div>' +
+                        "<p>Large files are not rendered inline.</p>" +
+                        '<a class="binary-download" href="' + escAttr(bigURL) + '" download="' + escAttr(bigName) + '">Download</a>' +
+                        "</div>";
+                    showFileHeaderBar(null, null);
+                    wsWatch(path);
+                    refreshTree();
+                    document.title = bigName + " - RepoView";
+                    return;
+                }
+
                 // Handle PDF files
                 if (data.isPDF) {
                     if (getViewParam()) setViewParam(null);

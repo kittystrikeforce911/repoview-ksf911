@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+- [fixed] API hardening: `/api/file` no longer renders arbitrarily large files inline (size cap above 16 MB now reports `tooLarge` with a Download link backed by `/api/raw`), read-only API endpoints reject non-GET requests with 405, and the `/ws` WebSocket now rejects cross-origin upgrades (same-origin host check) so web pages in other tabs cannot connect to your local viewer
+- [fixed] Live-reload watches registered with Windows-style backslash paths now match change notifications on all platforms (watch keys are slash-normalized)
+- [changed] Removed unused WebSocket hub goroutine (`hub.run`)
 
 ## [v0.17.0] - 2026-05-25
 
