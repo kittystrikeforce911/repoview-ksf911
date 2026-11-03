@@ -251,4 +251,3 @@ func TestCopyFile(t *testing.T) {
 		t.Errorf("got %q, want %q", got, content)
 	}
 }
-
