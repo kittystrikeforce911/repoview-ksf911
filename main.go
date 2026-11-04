@@ -390,13 +390,15 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 	// rendered inline as text; metadata-only responses (PDF, JSONL,
 	// binary, oversized) ignore it. The override takes precedence over
 	// whatever the extension would choose:
-	//   as=md  → render the raw text as Markdown
-	//   as=csv → render the raw text as a CSV table
-	//   as=xml → expose the parsed XML viewer for the raw text
-	//   as=txt → skip all rendering, show the raw text
+	//   as=md   → render the raw text as Markdown
+	//   as=csv  → render the raw text as a CSV table
+	//   as=xml  → expose the parsed XML viewer for the raw text
+	//   as=txt  → skip all rendering, show the raw text
+	//   as=wiki → render as Markdown and always expand wiki links
+	//             ([[target]], even outside an .obsidian vault)
 	asOverride := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("as")))
 	switch asOverride {
-	case "", "txt", "md", "csv", "xml":
+	case "", "txt", "md", "csv", "xml", "wiki":
 	default:
 		http.Error(w, "invalid as param", http.StatusBadRequest)
 		return
@@ -428,10 +430,13 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 	isHTML := ext == ".html" || ext == ".htm"
 	isXML := ext == ".xml"
 
+	// as=wiki forces wiki link expansion below even outside vaults.
+	wikiForced := asOverride == "wiki"
+
 	switch asOverride {
 	case "txt": // plain text view, no rendering
 		isMarkdown, isCSV, isSVG, isHTML, isXML = false, false, false, false, false
-	case "md":
+	case "md", "wiki":
 		isMarkdown, isCSV, isSVG, isHTML, isXML = true, false, false, false, false
 	case "csv":
 		isMarkdown, isCSV, isSVG, isHTML, isXML = false, true, false, false, false
@@ -446,7 +451,7 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 	var buf bytes.Buffer
 	switch {
 	case isMarkdown:
-		renderMarkdown(&buf, data)
+		renderMarkdown(&buf, data, wikiForced)
 	case isCSV:
 		renderCSV(&buf, data)
 	case isHTML:
@@ -603,7 +608,11 @@ func preprocessWikiLinks(data []byte) []byte {
 }
 
 // renderMarkdown converts markdown bytes to HTML using goldmark with GFM.
-func renderMarkdown(w io.Writer, data []byte) {
+// allowWiki additionally expands Obsidian wiki links ([[target]], and
+// allows inline HTML via WithUnsafe) even outside an .obsidian vault —
+// used by the "read as wiki" override; .md files inside a vault get the
+// same treatment through isObsidianVault regardless of allowWiki.
+func renderMarkdown(w io.Writer, data []byte, allowWiki bool) {
 	pairs, body := parseFrontmatter(data)
 
 	if len(pairs) > 0 {
@@ -616,7 +625,7 @@ func renderMarkdown(w io.Writer, data []byte) {
 	}
 
 	rendererOpts := []renderer.Option{gmhtml.WithHardWraps()}
-	if isObsidianVault {
+	if allowWiki || isObsidianVault {
 		body = preprocessWikiLinks(body)
 		rendererOpts = append(rendererOpts, gmhtml.WithUnsafe())
 	}

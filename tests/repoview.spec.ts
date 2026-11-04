@@ -803,6 +803,48 @@ test.describe("XML viewer", () => {
     await expect(page.locator(".xml-view")).toBeVisible();
     await expect(page.locator(".csv-filter-invalid", { hasText: "XML parse error" })).toBeVisible();
   });
+
+  test("read as Wiki Markdown from a plain text file", async ({ page }) => {
+    await page.goto("/wiki-notes.txt");
+    await expect(page.locator(".source-code pre.plain-text")).toBeVisible();
+
+    // The Read-as menu offers a Wiki Markdown entry
+    await page.locator(".edit-dropdown-btn", { hasText: "Read file as" }).click();
+    await page.locator(".edit-dropdown-item", { hasText: "Wiki Markdown" }).click();
+
+    // Wiki placeholders render as anchors resolved by the client
+    const body = page.locator("#content-area .markdown-body");
+    await expect(body).toBeVisible();
+    await expect(body.locator("a.wiki-link")).toHaveCount(4);
+    const hello = body.locator("a.wiki-link").first();
+    await expect(hello).toHaveAttribute("href", "/hello.md");
+
+    // The dangling target stays clickable but is marked broken
+    const broken = body.locator("a.wiki-link-broken");
+    await expect(broken).toHaveCount(1);
+    await expect(broken).toContainText("no-such-note-anywhere");
+
+    // The resolved link navigates to the note it targets
+    await hello.click();
+    await expect(page).toHaveURL(/hello\.md/);
+    await expect(
+      page.locator(".markdown-body", { hasText: "Hello World" }),
+    ).toBeVisible();
+  });
+
+  test("wiki read-as restores from a link and marks the menu item", async ({
+    page,
+  }) => {
+    await page.goto("/wiki-notes.txt?as=wiki");
+    const body = page.locator("#content-area .markdown-body");
+    await expect(body).toBeVisible();
+    await expect(body.locator("a.wiki-link").first()).toBeVisible();
+
+    await page.locator(".edit-dropdown-btn", { hasText: "Read file as" }).click();
+    await expect(
+      page.locator(".edit-dropdown-item.preferred", { hasText: "Wiki Markdown" }),
+    ).toBeVisible();
+  });
 });
 
 test.describe("Binary file handling", () => {

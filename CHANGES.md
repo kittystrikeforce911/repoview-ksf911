@@ -25,7 +25,8 @@ hardening for the device handover.
 | 10 | `a507635` | feat | four-way color system (Light/Dark/Nord/OpenCode Orng) | Themes |
 | 11 | `d8c7919` | ci | Playwright webServer runs without mise; 60 s boot timeout | Tooling |
 | 12 | `f6cb0ee` | docs | handover notes and theme entry | Handover |
-| 13 | *(this commit)* | feat | CSV column sort from table headers + descriptive control labels | CSV sort/labels |
+| 13 | `7d100c3` | feat | CSV column sort from table headers + descriptive control labels | CSV sort/labels |
+| 14 | *(this commit)* | feat | "Wiki Markdown" in Read file as (`as=wiki`) | Read-as wiki |
 
 ---
 
@@ -382,7 +383,7 @@ Docs-only commit; no test impact.
 
 ---
 
-## 13. *(this commit)* — feat(csv): CSV column sort from table headers + descriptive control labels
+## 13. `7d100c3` — feat(csv): CSV column sort from table headers + descriptive control labels
 
 **Summary.** CSV tables gain click-to-sort headers with a three-way cycle
 (ascending → descending → off), a numeric-aware comparator and ARIA sort
@@ -414,7 +415,7 @@ off.
   the hint current with the actual state; stays accurate after each cycle)
 
 ### Files
-`static/index.html` (+~170/−8), `tests/repoview.spec.ts` (+119)
+`static/index.html` (+248/−5), `tests/repoview.spec.ts` (+133)
 
 ### Tests
 Playwright 62 → 66 (+4): the click cycle (file order → ascending →
@@ -424,7 +425,51 @@ numeric-aware sorting combined with an active filter (weight ▲ over the
 record-link integrity while sorted (`#record-17` reachable from the
 top-sorted row), and the control-label spell-outs across the filter bar,
 sortable headers and the chart bar. Backend untouched — `go test ./...`
-unchanged.
+unchanged. Note: this commit also fixed a latent bug the new tests caught
+(`renderCSVTableHTML` iterated `row.length` on `{cells, orig}` row
+objects — filtered/sorted tables rendered rows with only the record-link
+cell; now iterates `row.cells`).
+
+---
+
+## 14. *(this commit)* — feat(view): "Wiki Markdown" in Read file as (`as=wiki`)
+
+**Summary.** The "Read file as" menu gains a fourth renderer: any inline
+text file can be re-read as Obsidian-style wiki markdown. Previously wiki
+links only expanded for `.md` files inside an `.obsidian` vault directory;
+`as=wiki` now forces wiki expansion and inline-HTML rendering regardless
+of the root being a vault — a single note file on any machine gets full
+repo-view interop with Obsidian-style notes.
+
+### Added
+- Backend: `as=wiki` renderer override in `handleFile` (validation switch
+  accepts it, `isMarkdown` set, `renderMarkdown` gained an `allowWiki`
+  parameter that forces `preprocessWikiLinks` + goldmark `WithUnsafe()`
+  even outside vaults; vault detection for plain `.md` files unchanged
+  via `isObsidianVault ||`)
+- Frontend: "Wiki Markdown" item in `populateReadAsMenu` (checking-mark +
+  `?as=wiki` current-marker behaviour); the markdown render path resolves
+  the emitted `<a class="wiki-link" data-wiki-target>` placeholders
+  client-side (valid → `wiki-link-valid` + href, dangling →
+  `wiki-link-broken` + "File not found" title)
+- Fixture: `testdata/wiki-notes.txt` (links: `[[hello]]` twice, aliased
+  `[[hello|the hello note]]`, dangling `[[no-such-note-anywhere]]`)
+
+### Files
+`main.go` (+12/−7), `main_test.go` (+59), `static/index.html` (+1),
+`testdata/wiki-notes.txt` (new, +9), `README.md` (+2/−2),
+`CHANGELOG.md` (+2)
+
+### Tests
+Backend: `TestHandleFile_ViewAsWiki` — outside a vault (temp dir),
+`as=md` leaves `[[target]]` literal and emits no wiki placeholders while
+`as=wiki` expands both a resolvable and a dangling target into wiki
+anchors (`data-wiki-target` + `class="wiki-link"`).
+Playwright 66 → 68 (+2): read-as menu offers "Wiki Markdown" on a plain
+text file, links resolve (`/hello.md` href, four anchors including two
+valid variants + one aliased + one broken), the resolved link navigates
+client-side to the target note, and `?as=wiki` deep-links restore the
+view with the menu item marked preferred.
 
 ---
 
@@ -437,6 +482,7 @@ unchanged.
 | `as=` renderer override (txt/md/csv/xml) | `abcceb0`, `d5d5d3c` |
 | `isPlainText` flag for `.txt` reading view | `34fec62` |
 | Chroma class-based token formatter (`WithClasses`) | `a507635` |
+| `as=wiki` override: force wiki expansion anywhere | *(this commit)* |
 | `isXML` / `rawXML` flags | `d5d5d3c` |
 
 ### Frontend — `static/index.html`
@@ -450,7 +496,8 @@ unchanged.
 | SVG chart engine + 8 chart types | `0e33fb0` |
 | Chip body removes filter | `4912f7d` (✕), `0e33fb0` (body) |
 | Four-way theme picker + themed chroma/plain-text CSS | `a507635` |
-| CSV column sorting from headers + control labels | *(this commit)* |
+| CSV column sorting from headers + control labels | `7d100c3` |
+| "Wiki Markdown" read-as menu item | *(this commit)* |
 
 ### Docs
 | Change | Commit |
@@ -467,6 +514,7 @@ unchanged.
 | Backend hardening + as/xml/override tests | `c7edfaf`, `abcceb0`, `34fec62`, `d5d5d3c` |
 | `tests/repoview.spec.ts` 43 → 59 → 62 tests | filter/x txt/xml/charts commits, then theme commits |
 | Theme suite (menu cycle, dark `.txt` regression, classed code view) | `a507635` |
+| Sort/label suite + read-as-wiki suite; `wiki-notes.txt` fixture | `7d100c3` (sort), *(this commit)* (wiki) |
 | Playwright webServer without mise; 60 s boot timeout | `d8c7919` |
 | Fixtures: `testdata/colors.csv`, `testdata/sample.xml` | `4912f7d`, `d5d5d3c` |
 
@@ -480,7 +528,7 @@ unchanged.
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **66 / 66 passed** — 62 verified at `f6cb0ee`; +4 CSV sort/label tests at *(this commit)* |
+| Playwright (Chromium) | **68 / 68 passed** — 66 verified at `7d100c3`; +2 wiki read-as tests at *(this commit)* |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (not in this branch yet)

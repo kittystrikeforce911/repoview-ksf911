@@ -29,8 +29,8 @@
   | `d8c7919` | ci(tests): Playwright webServer runs without mise; 60 s boot timeout |
   | *(this docs commit)* | docs: handover notes and theme entry |
 - Last verified state: `go build` ✅ · `go vet` ✅ · `gofmt` clean ✅ ·
-  `go test ./...` ok ✅ · **Playwright 66/66 passed** ✅ (through CHANGES.md
-  §13)
+  `go test ./...` ok ✅ · **Playwright 68/68 passed** ✅ (through CHANGES.md
+  §14)
 - Full change record: see `CHANGES.md` (per-commit detail + cross-index).
   Keep `CHANGES.md` updated with each new commit; `CHANGELOG.md` stays the
   per-commit `[Unreleased]` entry log.
@@ -46,19 +46,9 @@
    **SHIPPED as CHANGES.md §13** (click-to-cycle asc/desc/off,
    numeric-aware, `aria-sort`, labels across filter/sort/chart controls,
    Playwright 62 → 66).
-2. **Wiki Markdown in "Read file as"** (backend + frontend)
-   - `main.go`: accept `as=wiki` in the override switch; make
-     `renderMarkdown(w, data, allowWiki bool)`; `as=wiki` forces
-     `preprocessWikiLinks(body)` + `goldmark.WithUnsafe()` even outside an
-     `.obsidian` vault (vault detection stays for `.md` files).
-   - Frontend: add `{ as: "wiki", label: "Wiki Markdown" }` to
-     `populateReadAsMenu` (`static/index.html`); the md render path already
-     calls `resolveWikiLinks`, so placeholder `<a class="wiki-link">`
-     anchors resolve automatically.
-   - Tests: Go (as=wiki on non-vault dir → wiki anchors, as=md → none),
-     Playwright with a new `testdata/wiki-notes.txt` fixture (`[[hello]]`
-     resolves, broken target shows broken class); README API row
-     `&as=txt|md|csv|xml|wiki`.
+2. ~~**Wiki Markdown in "Read file as"**~~ — **SHIPPED as CHANGES.md §14**
+   (`as=wiki` forces `preprocessWikiLinks` + `WithUnsafe` even outside an
+   `.obsidian` vault; menu item added; Go + Playwright suites extended).
 3. **Cross-device access on `--host 0.0.0.0`**
    - Status: server-side `checkSameOrigin` compares `Origin` host to the
      request `Host` exactly, so a browser on another device reaching the

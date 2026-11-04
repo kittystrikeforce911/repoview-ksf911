@@ -1491,7 +1491,7 @@ func TestRenderMarkdown_WikiLinks(t *testing.T) {
 
 	input := []byte("See [[My Note]] for details.")
 	var buf bytes.Buffer
-	renderMarkdown(&buf, input)
+	renderMarkdown(&buf, input, false)
 	out := buf.String()
 
 	if !strings.Contains(out, `class="wiki-link"`) {
@@ -1934,6 +1934,73 @@ func TestHandleFile_ViewAsMarkdown(t *testing.T) {
 	if resp.RawContent == "" {
 		t.Error("expected rawContent for the code view of md overrides")
 	}
+}
+
+// TestHandleFile_ViewAsWiki checks the as=wiki renderer override: wiki
+// link placeholders are expanded even outside an .obsidian vault, while
+// the same directory read as=md leaves [[target]] syntax untouched.
+func TestHandleFile_ViewAsWiki(t *testing.T) {
+	t.Run("outside vault, as=md does not expand wiki links", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.WriteFile(
+			filepath.Join(dir, "notes.txt"),
+			[]byte("Go to [[hello]] and a dangling [[no-such-note]]\n"),
+			0o644,
+		); err != nil {
+			t.Fatal(err)
+		}
+		setRoot(t, dir)
+
+		req := httptest.NewRequest("GET", "/api/file?path=notes.txt&as=md", nil)
+		w := httptest.NewRecorder()
+		handleFile(w, req)
+
+		var resp FileResponse
+		json.NewDecoder(w.Body).Decode(&resp)
+
+		if !resp.IsMarkdown {
+			t.Error("expected as=md to set isMarkdown")
+		}
+		if strings.Contains(resp.Content, "wiki-link") {
+			t.Errorf("as=md outside a vault must not emit wiki placeholders, got: %.200s", resp.Content)
+		}
+		if !strings.Contains(resp.Content, "[[hello]]") {
+			t.Error("expected the literal [[target]] syntax to survive as=md outside a vault")
+		}
+	})
+
+	t.Run("as=wiki expands wiki links even outside a vault", func(t *testing.T) {
+		dir := t.TempDir()
+		if err := os.WriteFile(
+			filepath.Join(dir, "notes.txt"),
+			[]byte("Go to [[hello]] and a dangling [[no-such-note]]\n"),
+			0o644,
+		); err != nil {
+			t.Fatal(err)
+		}
+		setRoot(t, dir)
+
+		req := httptest.NewRequest("GET", "/api/file?path=notes.txt&as=wiki", nil)
+		w := httptest.NewRecorder()
+		handleFile(w, req)
+
+		var resp FileResponse
+		json.NewDecoder(w.Body).Decode(&resp)
+
+		if !resp.IsMarkdown {
+			t.Error("expected as=wiki to set isMarkdown")
+		}
+		// The resolver frontend links: hello resolves; the dangling target
+		// still becomes a (broken) wiki anchor.
+		for _, target := range []string{"data-wiki-target=\"hello\"", "data-wiki-target=\"no-such-note\""} {
+			if !strings.Contains(resp.Content, target) {
+				t.Errorf("expected %s in wiki-rendered content, got: %.250s", target, resp.Content)
+			}
+		}
+		if !strings.Contains(resp.Content, `class="wiki-link"`) {
+			t.Error("expected wiki anchor elements in wiki-rendered content")
+		}
+	})
 }
 
 func TestHandleFile_ViewAsCSV(t *testing.T) {

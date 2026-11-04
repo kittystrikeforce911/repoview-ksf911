@@ -1,0 +1,10 @@
+# Wiki notes
+
+This note uses Obsidian wiki links. Try "Read file as" → Wiki Markdown.
+
+- A plain link: [[hello]]
+- An aliased link: [[hello|the hello note]]
+- A dangling target: [[no-such-note-anywhere]]
+
+Wiki links resolve by note name, so [[hello]] maps to hello.md in the
+vault root.

@@ -12,7 +12,7 @@ I noticed my marketing team, when working with Claude Code and lots of markdown 
 
 - **GitHub-style UI** — familiar layout with resizable sidebar, breadcrumb navigation, and file tree
 - **Markdown rendering** — GitHub-Flavored Markdown via goldmark (tables, task lists, code blocks)
-- **Read file as** — re-render any text file as plain text, Markdown, a CSV table, or XML from a dropdown in the file header; plain `.txt` files open in a clean reading view with soft-wrap and line-number toggles
+- **Read file as** — re-render any text file as plain text, Markdown, Wiki Markdown (Obsidian wiki links expand even outside a vault), a CSV table, or XML from a dropdown in the file header; plain `.txt` files open in a clean reading view with soft-wrap and line-number toggles
 - **CSV filter toolbar** — per-column operators (contains, equals, regex, greater, less, empty), match all or any combination, removable filter chips (click the chip itself) and a live "Showing X of Y rows" count
 - **CSV column sorting** — click a table header to cycle ascending → descending → off, numeric-aware (weights sort as numbers), `aria-sort` state, and every filter/sort/chart control carries a descriptive label + tooltip
 - **CSV charts** — a Charts view beside the table with hand-rolled SVG visuals, no dependencies: bar, horizontal bar, stacked bar, line, area, scatter, pie and donut; choose the X column, numeric measure and aggregation (sum, avg, min, max, count), group by a colour column where it makes sense, and charts refresh live with the active row filters
@@ -102,7 +102,7 @@ The update command downloads the latest release from GitHub, shows release notes
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/tree?path=` | Returns immediate children of a directory as JSON |
-| `GET /api/file?path=` | Returns rendered file content as JSON. Flags: `isMarkdown`, `isCSV`, `isSVG`, `isHTML`, `isXML` (+ `rawXML` for the DOM-parseable source), `isPDF`, `isJSONL`, `isBinary`, `tooLarge` (file exceeds the 16 MB inline cap → Download via `/api/raw`), `content` (rendered HTML), `rawContent` (code view), `rawCSV`, `rawSVG`, `mimeType`, `size`. Optional `&as=txt\|md\|csv\|xml` overrides how the file renders ("Read file as" menu) |
+| `GET /api/file?path=` | Returns rendered file content as JSON. Flags: `isMarkdown`, `isCSV`, `isSVG`, `isHTML`, `isXML` (+ `rawXML` for the DOM-parseable source), `isPDF`, `isJSONL`, `isBinary`, `tooLarge` (file exceeds the 16 MB inline cap → Download via `/api/raw`), `content` (rendered HTML), `rawContent` (code view), `rawCSV`, `rawSVG`, `mimeType`, `size`. Optional `&as=txt\|md\|csv\|xml\|wiki` overrides how the file renders ("Read file as" menu; `as=wiki` renders Markdown and expands Obsidian wiki links even outside an `.obsidian` vault) |
 | `GET /api/raw?path=` | Serves the original file bytes for inline display and downloads (supports Range requests) |
 | `GET /api/files` | Returns a flat list of all file paths (uses `git ls-files` when available) |
 | `GET /api/jsonl?path=&page=&pageSize=` | Returns a page of JSONL records as pretty-printed JSON (max 100/page) |
