@@ -7,7 +7,7 @@
 ## Branch state (as of the theme-menu fix, 2026-11-04)
 
 - Branch `feat/viewer-upgrade`, based on `master` (v0.17.0)
-- **22 commits, ALL UNPUSHED** — stages 1–8 (CHANGES.md §13–§19) plus the
+- **23 commits, ALL UNPUSHED** — stages 1–8 (CHANGES.md §13–§19) plus the
   theme-menu fix (§20): CSV sort + labels, wiki read-as, cross-device
   access, MIT table, chart palettes + hover guideline (7b), histogram/
   bubble/heat map (7c), README screenshots (stage 8, `83afeea`), hash
@@ -16,8 +16,8 @@
   the owner-facing draft at `~/Desktop/pr-feat-viewer-upgrade.md` — do
   not push without the owner's go-ahead. Verify state with:
   ```bash
-  git log --oneline -22     # history intact after device switches
-  git rev-list --count origin/master..HEAD   # expect 22
+  git log --oneline -23     # history intact after device switches
+  git rev-list --count origin/master..HEAD   # expect 23
   ```
 - Commit list (newest last):
   | Commit | Title |
@@ -78,7 +78,7 @@
 ## BUGS / open questions
 
 - **"Theme menu blocked by the sidebar on short paths" (reported 2026-11-04)** —
-  RESOLVED as CHANGES.md §20 (*this commit*): `margin-left: auto` moved
+  RESOLVED as `15d8c0e` (CHANGES.md §20): `margin-left: auto` moved
   from `#theme-toggle` to `#theme-menu-wrap` so the toggle + menu pin to
   the bar's right edge, and the menu renders `position: fixed` anchored
   under the constant-height bar — it escapes the sticky-bar subtree that

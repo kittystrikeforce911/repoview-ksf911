@@ -32,7 +32,7 @@ hardening for the device handover.
 | 17 | `78d7266` | feat | theme-aware chart palettes (`--rv-chart-N`) + hover guideline | Charts 7b |
 | 18 | `4df1646` | feat | histogram, bubble, heat map chart types | Charts 7c |
 | 19 | `83afeea` | docs | README screenshots (charts/themes, code view, read-as) | Docs |
-| 20 | *(this commit)* | fix | theme menu clears the sidebar on short paths | UI |
+| 20 | `15d8c0e` | fix | theme menu clears the sidebar on short paths | UI |
 
 ---
 
@@ -652,7 +652,7 @@ Docs-only commit; gates re-run green (73/73 Playwright).
 
 ---
 
-## 20. *(this commit)* — fix(ui): theme menu clears the sidebar on short paths
+## 20. `15d8c0e` — fix(ui): theme menu clears the sidebar on short paths
 
 **Summary.** Owner-report: on short paths the open theme menu is
 blocked by the sidebar. Reproduced by measurement on `/main.go` at
@@ -688,7 +688,8 @@ Two causes, both fixed in `static/index.html`:
    precedes the base gets ignored).
 
 ### Files
-`static/index.html` (+~35/−~5), `tests/repoview.spec.ts` (+57/−0)
+`static/index.html` (+20/−4), `tests/repoview.spec.ts` (+44/−0),
+`CHANGELOG.md` (+1/−0), `CHANGES.md` (+53/−1), `TODO.md` (+20/−12)
 
 ### Tests
 Playwright **+2 (73 → 75)** — new `Theme menu` describe: "opens clear of
@@ -730,7 +731,7 @@ re-run green.
 | Chart series palette via theme vars + hover guideline | `78d7266` |
 | Histogram / bubble / heat map chart types | `4df1646` |
 | README screenshots (charts/themes, code, read-as) | `83afeea` |
-| Theme menu clears the sidebar on short paths | *(this commit)* |
+| Theme menu clears the sidebar on short paths | `15d8c0e` |
 
 ### Docs
 | Change | Commit |
@@ -763,7 +764,7 @@ re-run green.
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **75 / 75 passed** — 73 at `83afeea`; +2 theme-menu regression tests at *(this commit)* |
+| Playwright (Chromium) | **75 / 75 passed** — 73 at `83afeea`; +2 theme-menu regression tests at `15d8c0e` |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (branch follow-up)
