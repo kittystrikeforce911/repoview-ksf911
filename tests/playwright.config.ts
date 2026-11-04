@@ -1,9 +1,11 @@
 import { defineConfig } from "@playwright/test";
 
-const command =
-  process.platform === "win32"
-    ? "go run .. -port 3123 -no-browser ../testdata"
-    : "mise x go -- go run .. -port 3123 -no-browser ../testdata";
+// Boots the Go server for the suite. Requires `go` on PATH, no toolchain
+// manager needed. When the command cannot boot (cold compile on a fresh
+// machine), build and serve the binary yourself, e.g.
+//   go build -o /tmp/repoview .. && /tmp/repoview -port 3123 -no-browser ../testdata
+// and the suite reuses the already-running server.
+const command = "go run .. -port 3123 -no-browser ../testdata";
 
 export default defineConfig({
   testDir: ".",
