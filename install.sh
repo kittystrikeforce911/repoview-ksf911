@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO="nvquanghuy/repoview"
+REPO="kittystrikeforce911/repoview-ksf911"
 INSTALL_DIR="$HOME/.local/bin"
 
 # Detect OS

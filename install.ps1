@@ -1,9 +1,9 @@
 # RepoView installer for Windows (PowerShell)
-# Usage: irm https://raw.githubusercontent.com/nvquanghuy/repoview/master/install.ps1 | iex
+# Usage: irm https://raw.githubusercontent.com/kittystrikeforce911/repoview-ksf911/master/install.ps1 | iex
 
 $ErrorActionPreference = "Stop"
 
-$repo = "nvquanghuy/repoview"
+$repo = "kittystrikeforce911/repoview-ksf911"
 $installDir = "$env:LOCALAPPDATA\Programs\repoview"
 
 # Detect architecture

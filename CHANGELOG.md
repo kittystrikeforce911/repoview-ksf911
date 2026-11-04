@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- [changed] Repository re-homed to `kittystrikeforce911/repoview-ksf911`: the README, installers (`install.sh`, `install.ps1`), the update checker (`repoview update` release API) and the release script now reference the new repository, the broken `go install <url>@latest` shortcut was replaced with clone-and-build steps, and `release.sh` pushes tags to the fork instead of the original upstream
+- [changed] Documentation consolidated: `documentation.md` merged into `README.md` as the *Theming & custom themes* section (anchor `#theming--custom-themes`); de-duplicated the theming feature bullet; internal handover documents removed (`TODO.md`, `PRD.md`, `CLAUDE.md`, `AGENTS.md`) with the Mermaid-CDN limitation salvaged into README's *Known limitations*
 - [fixed] API hardening: `/api/file` no longer renders arbitrarily large files inline (size cap above 16 MB now reports `tooLarge` with a Download link backed by `/api/raw`), read-only API endpoints reject non-GET requests with 405, and the `/ws` WebSocket now rejects cross-origin upgrades (same-origin host check) so web pages in other tabs cannot connect to your local viewer
 - [fixed] Live-reload watches registered with Windows-style backslash paths now match change notifications on all platforms (watch keys are slash-normalized)
 - [changed] Removed unused WebSocket hub goroutine (`hub.run`)

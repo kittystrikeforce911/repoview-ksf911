@@ -60,7 +60,7 @@ ${CHANGELOG}"
 
 echo "Pushing commit and tag..."
 git push
-git push origin "${TAG}"
+git push fork "${TAG}"
 
 echo ""
 echo "Done! ${TAG} pushed — GitHub Actions will build the release."

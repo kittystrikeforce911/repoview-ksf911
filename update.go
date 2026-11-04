@@ -18,9 +18,9 @@ import (
 )
 
 const (
-	repoOwner     = "nvquanghuy"
-	repoName      = "repoview"
-	releasesURL   = "https://api.github.com/repos/nvquanghuy/repoview/releases/latest"
+	repoOwner     = "kittystrikeforce911"
+	repoName      = "repoview-ksf911"
+	releasesURL   = "https://api.github.com/repos/kittystrikeforce911/repoview-ksf911/releases/latest"
 	checkInterval = 24 * time.Hour
 )
 
