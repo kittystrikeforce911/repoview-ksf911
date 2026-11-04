@@ -8,6 +8,6 @@ Not OK's(Your own repo)
 
 - Big unique features
 - Mayor changes in the code with **no detailed explanation**
-- Poor lightweight or resource management
+- Poor resource management
 
-Hope this clears it out
+Hope this clears it out (thumbs up)
