@@ -52,10 +52,9 @@
 3. ~~**Cross-device access on `--host 0.0.0.0`**~~ — **SHIPPED as CHANGES.md
    §15** (`TestCheckSameOrigin` LAN/IPv6/subnet cases; README
    *Access from other devices* section).
-4. **README: MIT license summary table (from choosealicense.com)**
-   - Permissions: commercial use, modification, distribution, private use;
-     Limitations: liability, warranty; Conditions: license and copyright
-     notice. Short table under the existing `## License` section + link.
+4. ~~**README: MIT license summary table (from choosealicense.com)**~~ —
+   **SHIPPED as CHANGES.md §16** (Permissions/Conditions/Limitations table
+   + link, grounded on the MIT page).
 5. **Stage 7b** — chart palettes / hover-polish; **Stage 7c** — histogram,
    bubble, heatmap chart types; **Stage 8** — `stageshow` docs screenshots +
    create the PR for `feat/viewer-upgrade`.

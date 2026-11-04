@@ -27,7 +27,8 @@ hardening for the device handover.
 | 12 | `f6cb0ee` | docs | handover notes and theme entry | Handover |
 | 13 | `7d100c3` | feat | CSV column sort from table headers + descriptive control labels | CSV sort/labels |
 | 14 | `2e01bad` | feat | "Wiki Markdown" in Read file as (`as=wiki`) | Read-as wiki |
-| 15 | *(this commit)* | feat | cross-device WebSocket origin tests + README access-guide | Interop |
+| 15 | `583f1fd` | feat | cross-device WebSocket origin tests + README access-guide | Interop |
+| 16 | *(this commit)* | docs | MIT license summary table (choosealicense.com) | Docs |
 
 ---
 
@@ -474,7 +475,7 @@ view with the menu item marked preferred.
 
 ---
 
-## 15. *(this commit)* — feat(api): cross-device WebSocket origin tests + README access guide
+## 15. `583f1fd` — feat(api): cross-device WebSocket origin tests + README access guide
 
 **Summary.** The WebSocket upgrade is already usable across devices
 (`checkSameOrigin` requires the Origin host to equal the request host, so a
@@ -499,6 +500,27 @@ with device-shaped regression cases, so LAN-interop cannot regress silently.
 Backend only: +8 acceptance cases (LAN/subnet/IPv6 pairings and scheme
 insensitivity) and +3 rejections (neighbouring IP, foreign host, wrong
 port); `go test ./...` green; Playwright re-run unchanged (68/68).
+
+---
+
+## 16. *(this commit)* — docs: MIT license summary table (choosealicense.com)
+
+**Summary.** The bare `MIT` under the README License section becomes the
+one-line choosealicense.com description plus its Permissions / Conditions /
+Limitations table (grounded on
+[the MIT page](https://choosealicense.com/licenses/mit/): commercial use,
+distribution, modification and private use permitted; license-and-copyright
+notice required; no warranty, no liability).
+
+### Added
+- License table mirroring choosealicense.com's MIT row, with link to the
+  source page
+
+### Files
+`README.md` (+8/−1), `CHANGELOG.md` (+1)
+
+### Tests
+Docs-only commit; all gates re-run green (68/68 Playwright).
 
 ---
 
@@ -535,7 +557,8 @@ port); `go test ./...` green; Playwright re-run unchanged (68/68).
 | Feature list: read-as, filters, charts, XML; `CHANGES.md` created | `1be8d7c` |
 | README feature bullet for theming | `a507635` |
 | Debian dev-env setup, `TODO.md` handover notes, this file brought current | `f6cb0ee` |
-| README "Access from other devices" cross-device guide | *(this commit)* |
+| README "Access from other devices" cross-device guide | `583f1fd` |
+| MIT license summary table (choosealicense.com) | *(this commit)* |
 | `CHANGELOG.md` `[Unreleased]` entries per commit | all feature/fix commits |
 
 ### Tests & fixtures

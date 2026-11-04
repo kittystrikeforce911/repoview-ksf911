@@ -215,4 +215,10 @@ testdata/            # Sample files used by tests
 
 ## License
 
-MIT
+MIT — "A short and simple permissive license with conditions only
+requiring preservation of copyright and license notices."
+([choosealicense.com/licenses/mit](https://choosealicense.com/licenses/mit/))
+
+| Permissions | Conditions | Limitations |
+|-------------|------------|-------------|
+| ✓ Commercial use · ✓ Distribution · ✓ Modification · ✓ Private use | ⓘ License and copyright notice | ✕ Liability · ✕ Warranty |
