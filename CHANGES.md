@@ -40,7 +40,7 @@ hardening for the device handover.
 | 25 | `fd98d04` | docs | re-point hash pins after branch identity rewrite | Housekeeping |
 | 26 | `5fb96c9` | docs | re-film README stills, outdated-GIF note, public-repo notes | Docs |
 | 27 | `4800b3e` | feat | uninstall.sh and uninstall.ps1 | Installers |
-| 28 | `pending` | docs | complex charts still + Files icon beside the title | Docs |
+| 28 | `f57da10` | docs | complex charts still + Files icon beside the title | Docs |
 
 ---
 
@@ -996,7 +996,7 @@ state layout all stay in agreement, so the trio cannot silently drift.
 
 ---
 
-## 28. docs: complex charts still + Files icon beside the title (pins §27)
+## 28. `f57da10` — docs: complex charts still + Files icon beside the title (pins §27)
 
 **Summary.** Two README touches folded into the clone the owner made
 after contributing LICENSE, CONTRIBUTING.md, the Why-blockquote and the
