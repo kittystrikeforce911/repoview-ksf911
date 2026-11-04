@@ -31,7 +31,7 @@ hardening for the device handover.
 | 16 | `6dfd6ee` | docs | MIT license summary table (choosealicense.com) | Docs |
 | 17 | `78d7266` | feat | theme-aware chart palettes (`--rv-chart-N`) + hover guideline | Charts 7b |
 | 18 | `4df1646` | feat | histogram, bubble, heat map chart types | Charts 7c |
-| 19 | *(this commit)* | docs | README screenshots (charts/themes, code view, read-as) | Docs |
+| 19 | `83afeea` | docs | README screenshots (charts/themes, code view, read-as) | Docs |
 
 ---
 
@@ -621,7 +621,7 @@ cells carry "bucket / colour" titles.
 
 ---
 
-## 19. *(this commit)* — docs: README screenshots (charts/themes, code view, read-as)
+## 19. `83afeea` — docs: README screenshots (charts/themes, code view, read-as)
 
 **Summary.** The README gains a *Screenshots* section with three staged
 stills of the running app, filmed after stage 7c landed. The stageshow
@@ -643,7 +643,8 @@ app would undercut the truthful-fidelity story the viewer sells.
   two-line caption
 
 ### Files
-`docs/screenshots/*` (3 new PNGs, ~734 KB total), `README.md` (+22)
+`docs/screenshots/*` (3 new PNGs, ~734 KB total), `README.md` (+21),
+`CHANGELOG.md` (+1/−0), `CHANGES.md` (+48/−9), `TODO.md` (+7/−3)
 
 ### Tests
 Docs-only commit; gates re-run green (73/73 Playwright).
@@ -677,7 +678,7 @@ Docs-only commit; gates re-run green (73/73 Playwright).
 | "Wiki Markdown" read-as menu item | `2e01bad` |
 | Chart series palette via theme vars + hover guideline | `78d7266` |
 | Histogram / bubble / heat map chart types | `4df1646` |
-| README screenshots (charts/themes, code, read-as) | *(this commit)* |
+| README screenshots (charts/themes, code, read-as) | `83afeea` |
 
 ### Docs
 | Change | Commit |
@@ -717,7 +718,7 @@ Docs-only commit; gates re-run green (73/73 Playwright).
 
 - ~~Stage 7b — chart palettes + hover guideline~~ — shipped `78d7266`
 - ~~Stage 7c — histogram / bubble / heatmap chart types~~ — shipped `4df1646`
-- ~~Stage 8 — screenshots for README/demo~~ — shipped *(this commit)*;
+- ~~Stage 8 — screenshots for README/demo~~ — shipped `83afeea`;
   remaining action: push `feat/viewer-upgrade` and open the PR (draft text
   handed to the owner — `gh` is not installed and the remote needs
   credentials, so pushing is the owner's call)
