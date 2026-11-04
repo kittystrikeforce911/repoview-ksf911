@@ -7,7 +7,7 @@
 ## Branch state (as of the theme-menu fix, 2026-11-04)
 
 - Branch `feat/viewer-upgrade`, based on `master` (v0.17.0)
-- **29 commits, ALL UNPUSHED** — stages 1–8 (CHANGES.md §13–§19) plus the
+- **31 commits, ALL UNPUSHED** — stages 1–8 (CHANGES.md §13–§19) plus the
   theme-menu fix (§20), the line-number gutter padding (§21), the
   documentation.md theming guide (§22), collapse & fold (§23) and the
   styled fold switch + Dark rose theme (§24): CSV sort

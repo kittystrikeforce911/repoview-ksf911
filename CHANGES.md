@@ -896,6 +896,22 @@ tests, vet, gofmt, JS parse).
 
 ---
 
+## 25. `fd98d04` — docs: re-point hash pins after branch identity rewrite
+
+History re-authoring: all branch commits (§1–§24) were re-authored to the
+new commit identity `kittystrikeforce911 <kittystrikeforce911@users.noreply.github.com>`
+(`git filter-branch --env-filter`, scope strictly `master..feat/viewer-upgrade`,
+author and committer dates preserved, commits otherwise untouched). Every
+hash reference in `CHANGES.md`, `TODO.md` and `documentation.md`, plus the
+owner-facing PR draft, was re-pointed to the new hashes; file contents, the
+diff stat (17 files, +6514/−141) and the verification gates are unchanged —
+`go build`, `go vet`, `go test`, `gofmt` re-run green on the rewritten tip.
+One consequence that cannot be migrated: the "pin" commit *messages*
+(`chore: pin CHANGES.md §N (hash)`) still cite the pre-rewrite hashes; the
+section titles above are the authoritative hash record.
+
+---
+
 ## Cross-index by area
 
 ### Backend — `main.go` / `main_test.go`
