@@ -4,6 +4,10 @@ A lightweight, single-binary local folder viewer that replicates the GitHub UI f
 
 ![repoview-demo](https://github.com/user-attachments/assets/940a295f-bbc4-4949-b1a1-770f39781b2c)
 
+> **Note:** the demo GIF is from an earlier build — it predates theming,
+> CSV charts, the filter toolbar, "Read file as" and collapse & fold. The
+> stills in [Screenshots](#screenshots) below are current.
+
 ## Screenshots
 
 **CSV Charts, themed.** The Charts view on `colors.csv` — a Bubble of the
@@ -24,6 +28,13 @@ Obsidian `[[wiki links]]` resolve to navigable anchors (broken targets are
 marked), with the Read-as menu open.
 
 ![Read file as menu over a wiki-rendered note](docs/screenshots/read-as-wiki.png)
+
+**Collapse & fold, Dark rose.** Every indent-foldable range of `main.go`
+collapsed at once from the file header, the switch reading *Expand*;
+single ranges still fold from the gutter caret. Filmed in Dark rose to
+show the fold UI holds up under a tinted theme.
+
+![All folds collapsed in Dark rose with the header switch showing Expand](docs/screenshots/folds-rose.png)
 
 ## Why
 
@@ -75,8 +86,9 @@ irm https://raw.githubusercontent.com/kittystrikeforce911/repoview-ksf911/master
 
 Downloads the latest release binary to `%LOCALAPPDATA%\Programs\repoview`.
 
-> On a **private** repository the raw-script URL and the release download
-> require an authenticated session or token; from-source install avoids that.
+> If you mirror this repository privately, the raw-script URL and the
+> release downloads on the mirror require an authenticated session or
+> token; installing from source avoids that.
 
 ## Usage
 
@@ -121,9 +133,10 @@ repoview update --check   # check for updates without installing
 
 The update command downloads the latest release from GitHub, shows release notes, and replaces the current binary.
 
-> Until this repository publishes its first tag-driven release, the update
-> checks resolve to "no release" and stay silent; `repoview update` reports
-> the missing release instead of downloading anything.
+> The update check reads the GitHub Releases API; until a tagged release
+> is published, it resolves to "no release" and stays silent, and
+> `repoview update` reports the missing release instead of downloading
+> anything.
 
 ### Access from other devices
 

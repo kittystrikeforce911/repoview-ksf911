@@ -37,6 +37,8 @@ hardening for the device handover.
 | 22 | `633b21f` | docs | documentation.md + custom-themes guide | Docs |
 | 23 | `9c02eb1` | feat | collapse & fold for hierarchical views | UI |
 | 24 | `425d66d` | feat | styled fold switch + Dark rose theme | UI |
+| 25 | `fd98d04` | docs | re-point hash pins after branch identity rewrite | Housekeeping |
+| 26 | `pending` | docs | re-film README stills, outdated-GIF note, public-repo notes | Docs |
 
 ---
 
@@ -909,6 +911,50 @@ diff stat (17 files, +6514/−141) and the verification gates are unchanged —
 One consequence that cannot be migrated: the "pin" commit *messages*
 (`chore: pin CHANGES.md §N (hash)`) still cite the pre-rewrite hashes; the
 section titles above are the authoritative hash record.
+
+---
+
+## 26. docs: re-film README stills, outdated-GIF note, public-repo phrasing
+
+**Summary.** The fork ground is going public, so the README gets a face
+renewal. The three staged stills of §19 were re-filmed against the
+current build's live server (the originals predate collapse & fold and
+the Dark rose theme), a fourth still joins them for the newest story,
+and the recorded demo GIF keeps its prime spot — but with a blockquote
+note marking it as filmed on an earlier build, handing the lead to the
+*Screenshots* section. Framing discipline as in §19: one story per
+frame, restrained real strings, no dead corners, and every shot taken of
+the live product with DOM-asserted preconditions (five theme-menu
+entries with Nord checked, chart bubbles present, wiki anchors resolved,
+the fold switch reporting *Expand*) so a frame cannot show a state the
+app was not in.
+
+### Changed
+- `README.md`: `charts-themes-nord.png`, `code-view-dark.png` and
+  `read-as-wiki.png` re-filmed at the same 2880×1800 framing (1440×900
+  viewport, deviceScaleFactor 2); captions unchanged — same scenes, same
+  stories, current pixels
+- New still `docs/screenshots/folds-rose.png`: all indent-folded ranges
+  of `main.go` collapsed at once via the file-header switch (reading
+  *Expand*), in the Dark rose theme
+- Demo GIF blockquote note: older build, stills below are current
+- Install/Updating caveats re-phrased from this repository's
+  private-fork phase to generic guidance (private mirrors need
+  authentication; update checks stay silent until a tagged release
+  exists), since the repository is going public
+- `CHANGELOG.md` `[Unreleased]` records the refresh
+
+### Craft notes
+- The capture server is the built binary serving the repo root itself,
+  keeping "the viewer reading its own source" literally true. The first
+  attempt ran testdata-rooted and had to be replaced: it survived a kill
+  and kept the port bound, and its SPA catch-all answered HTTP 200 for
+  nonexistent paths — a 200 that is not a file. Framing assertions must
+  check the DOM, never the status code.
+- Screens were re-filmed, not rebuilt: a faux UI of a screenshotable app
+  would undercut the viewer's honest-UI pitch (same verdict as §19).
+- `documentation.md` remains a tracked file (merged into the README by
+  `ee258ea`, not deleted); the new code-view stills show it in the tree.
 
 ---
 
