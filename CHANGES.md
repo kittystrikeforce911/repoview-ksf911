@@ -35,7 +35,7 @@ hardening for the device handover.
 | 20 | `15d8c0e` | fix | theme menu clears the sidebar on short paths | UI |
 | 21 | `e2f78ef` | fix | padded line-number gutters across all numbered views | UI |
 | 22 | `a7f6a21` | docs | documentation.md + custom-themes guide | Docs |
-| 23 | *(this commit)* | feat | collapse & fold for hierarchical views | UI |
+| 23 | `aac917e` | feat | collapse & fold for hierarchical views | UI |
 
 ---
 
@@ -781,7 +781,7 @@ Docs-only commit, no behavior change; gates green (79/79).
 
 ---
 
-## 23. *(this commit)* — feat(ui): collapse & fold for hierarchical views
+## 23. `aac917e` — feat(ui): collapse & fold for hierarchical views
 
 **Summary.** The owner asked for a simple collapse switch for
 hierarchical file types — python functions, JSON, XML, markdown titles,
@@ -872,7 +872,7 @@ re-run green (83/83; Go tests, vet, gofmt, JS parse).
 | Theme menu clears the sidebar on short paths | `15d8c0e` |
 | Padded line-number gutters across numbered views | `e2f78ef` |
 | documentation.md + custom-themes guide | `a7f6a21` |
-| Collapse & fold for hierarchical views | *(this commit)* |
+| Collapse & fold for hierarchical views | `aac917e` |
 
 ### Docs
 | Change | Commit |
@@ -905,7 +905,7 @@ re-run green (83/83; Go tests, vet, gofmt, JS parse).
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **83 / 83 passed** — 79 at `e2f78ef`; +4 fold tests at *(this commit)* |
+| Playwright (Chromium) | **83 / 83 passed** — 79 at `e2f78ef`; +4 fold tests at `aac917e` |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (branch follow-up)
