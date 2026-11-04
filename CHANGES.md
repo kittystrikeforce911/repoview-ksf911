@@ -36,6 +36,7 @@ hardening for the device handover.
 | 21 | `e2f78ef` | fix | padded line-number gutters across all numbered views | UI |
 | 22 | `a7f6a21` | docs | documentation.md + custom-themes guide | Docs |
 | 23 | `aac917e` | feat | collapse & fold for hierarchical views | UI |
+| 24 | *(this commit)* | feat | styled fold switch + Dark rose theme | UI |
 
 ---
 
@@ -841,6 +842,60 @@ re-run green (83/83; Go tests, vet, gofmt, JS parse).
 
 ---
 
+## 24. *(this commit)* — feat(ui): styled fold switch + Dark rose theme
+
+**Summary.** Three follow-ups from the owner, scoped exactly: give the
+new collapse/fold switch real styling, ship a pink-shaded version of
+the dark theme, and update the documentation.
+
+- **Fold switch styling.** `.fold-switch` was a bare button falling back
+  to OS default styling. It now shares the standalone header
+  action-button rule set with `.outline-btn` (the same declarations
+  `.edit-dropdown-btn` uses for "Read file as"/Edit): themed
+  `--rv-bg-secondary` surface, `--rv-border` hairline, 6px radius,
+  `/hover → --rv-bg-hover`, and an `.active` state
+  (`--rv-bg-active` + `--rv-border-active` + `--rv-link` text) — which
+  maps 1:1 onto the switch's existing "all collapsed" state. One
+  consistency fix rides along: `.outline-btn` gains
+  `font-family: inherit` (it was rendering in the browser default font),
+  matching the dropdown buttons it sits beside.
+- **Dark rose theme.** A fifth registered colorway: the `dark` block's
+  full 44-variable contract hue-rotated into warm rose/mauve (same
+  structure, same contrast levels) — plum shell surfaces, pink-tinted
+  text ramp, pink `--rv-link`, pink-forward chroma tokens, and a
+  10-entry pink-forward chart ramp. Registered in both spots the guide
+  specifies: the boot allowlist (`localStorage` restore) and the picker
+  `THEMES` array with a `['#2a1f27', '#f38bc5']` swatch. Id `rose`,
+  label `Dark rose`, `color-scheme: dark`. Mermaid keeps mapping any
+  non-`light` id to its dark preset, so diagrams render correctly with
+  no extra code.
+- **Documentation.** `documentation.md` updated for five themes/blocks
+  (mechanism-table line ranges re-measured against the current file:
+  theme blocks ~10/60/112/163/215, boot IIFE ~2366–2376, picker `THEMES`
+  ~2499), plus two structural notes: `rose` is the shipped live example
+  of a tinted take on an existing block, and the fold switch shares the
+  outline-btn rule set for future header buttons. README's theming
+  bullet moves to "Five-way theming" in both places it appears.
+
+### Files
+`static/index.html` (+64/−5), `tests/repoview.spec.ts` (+141/−2),
+`CHANGES.md` (+57/−1), `documentation.md` (+16/−10), `TODO.md` (+5/−4),
+`README.md` (+2/−2), `CHANGELOG.md` (+2/−0)
+
+### Tests
+Playwright **+5 (83 → 88)** — new `Dark rose theme` describe (menu →
+`data-theme="rose"` + `localStorage`, body bg `rgb(42, 31, 39)`,
+`--rv-link` `#f5a8c6`, code tokens resolve through `--rv-code-key`,
+persistence across reload) and new `Fold switch styling` describe
+(computed-style probes asserting the switch matches resolved theme vars
+at rest and when active, in both Light and Dark rose — no hardcoded
+colors). The existing picker test's row matcher is exact now
+(`^label(✓)?$`, tolerating the active-row check mark) and its menu
+count asserts **5** items. Full gate battery re-run green (88/88; Go
+tests, vet, gofmt, JS parse).
+
+---
+
 ## Cross-index by area
 
 ### Backend — `main.go` / `main_test.go`
@@ -873,6 +928,7 @@ re-run green (83/83; Go tests, vet, gofmt, JS parse).
 | Padded line-number gutters across numbered views | `e2f78ef` |
 | documentation.md + custom-themes guide | `a7f6a21` |
 | Collapse & fold for hierarchical views | `aac917e` |
+| Styled fold switch & Dark rose theme | *(this commit)* |
 
 ### Docs
 | Change | Commit |
@@ -905,7 +961,7 @@ re-run green (83/83; Go tests, vet, gofmt, JS parse).
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **83 / 83 passed** — 79 at `e2f78ef`; +4 fold tests at `aac917e` |
+| Playwright (Chromium) | **88 / 88 passed** — 83 at `aac917e`; +5 fold-switch/rose tests at *(this commit)* |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (branch follow-up)

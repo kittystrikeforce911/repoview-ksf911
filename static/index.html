@@ -106,6 +106,58 @@
                 --rv-chart-9: #f5c2e7;
                 --rv-chart-10: #74c7ec;
             }
+            /* Dark rose — a pink-shaded take on the Dark colorway:
+               the same structure and contrast levels, hue-rotated into
+               warm rose/mauve territory. */
+            [data-theme="rose"] {
+                color-scheme: dark;
+                --rv-bg: #2a1f27;
+                --rv-bg-secondary: #352430;
+                --rv-bg-tertiary: #44303c;
+                --rv-bg-hover: #4b3643;
+                --rv-bg-active: #4a2b3d;
+                --rv-border: #553e4e;
+                --rv-border-active: #e76f9d;
+                --rv-text: #f2dbdf;
+                --rv-text-secondary: #b896a4;
+                --rv-text-tertiary: #8a6b7b;
+                --rv-link: #f5a8c6;
+                --rv-icon-folder: #f5a8c6;
+                --rv-resize-handle: #f5a8c640;
+                --rv-scrollbar-thumb: #553e4e;
+                --rv-scrollbar-thumb-hover: #6d4f62;
+                --rv-overlay: #00000080;
+                --rv-shadow: rgba(0, 0, 0, 0.3);
+                --rv-shadow-strong: rgba(0, 0, 0, 0.4);
+                --rv-error-bg: #3f1729;
+                --rv-error-border: #8c3a5a;
+                --rv-error-text: #ff7fa8;
+                --rv-error-btn-hover: #b84a6e;
+                --rv-warning-bg: #3b3020;
+                --rv-warning-border: #8a7530;
+                --rv-warning-text: #e0c080;
+                /* Code (chroma) token families (pink-forward). */
+                --rv-code-key: #f5a2c8;
+                --rv-code-str: #b8e6a8;
+                --rv-code-num: #fdc09b;
+                --rv-code-com: #8a6b7b;
+                --rv-code-fn: #f78bbd;
+                --rv-code-cls: #e9c4f0;
+                --rv-code-tag: #ff9ac2;
+                --rv-code-attr: #e8b7d8;
+                --rv-code-op: #d9c1cc;
+                /* Chart series palette (pink-forward ramp). */
+                --rv-chart-1: #f38bc5;
+                --rv-chart-2: #fdc09b;
+                --rv-chart-3: #a8d8b9;
+                --rv-chart-4: #e86a8a;
+                --rv-chart-5: #c7a8f0;
+                --rv-chart-6: #f2e0b8;
+                --rv-chart-7: #7fd4c1;
+                --rv-chart-8: #b08ab0;
+                --rv-chart-9: #ff9ce0;
+                --rv-chart-10: #8fc8ea;
+            }
             /* Nord (colored theme 1) — official Nord palette
                https://www.nordtheme.com/docs/colors-and-palettes */
             [data-theme="nord"] {
@@ -936,8 +988,10 @@
                 font-size: 14px;
             }
 
-            /* Outline toggle button */
-            .outline-btn {
+            /* Outline toggle button (and the fold switch, which shares
+               the same standalone action-button styling). */
+            .outline-btn,
+            .fold-switch {
                 display: inline-flex;
                 align-items: center;
                 gap: 6px;
@@ -949,11 +1003,14 @@
                 border: 1px solid var(--rv-border);
                 border-radius: 6px;
                 cursor: pointer;
+                font-family: inherit;
             }
-            .outline-btn:hover {
+            .outline-btn:hover,
+            .fold-switch:hover {
                 background: var(--rv-bg-hover);
             }
-            .outline-btn.active {
+            .outline-btn.active,
+            .fold-switch.active {
                 background: var(--rv-bg-active);
                 border-color: var(--rv-border-active);
                 color: var(--rv-link);
@@ -2309,7 +2366,7 @@
         </style>
         <script>
             (function() {
-                var THEMES = ['light', 'dark', 'nord', 'opencode'];
+                var THEMES = ['light', 'dark', 'nord', 'opencode', 'rose'];
                 var saved = localStorage.getItem('rv-theme');
                 if (THEMES.indexOf(saved) === -1) {
                     saved = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
@@ -2448,6 +2505,8 @@
                   swatch: ['#2e3440', '#88c0d0'] },
                 { id: 'opencode', label: 'OpenCode Orng',
                   swatch: ['#0a0a0a', '#ec5b2b'] },
+                { id: 'rose', label: 'Dark rose',
+                  swatch: ['#2a1f27', '#f38bc5'] },
             ];
             var themeMenu = document.getElementById('theme-menu');
             var themeBtn = document.getElementById('theme-toggle');

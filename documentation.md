@@ -6,18 +6,18 @@ Practical reference beyond the README. For the product tour see
 
 ## Theming
 
-RepoView ships four built-in themes — **Light** (Obsidian default light),
-**Dark** (Catppuccin-based), **Nord** (official ramp) and **OpenCode
-Orng**. Everything is CSS-variable driven and client-side; the server
-never hard-codes a color.
+RepoView ships five built-in themes — **Light** (Obsidian default light),
+**Dark** (Catppuccin-based), **Dark rose** (a pink-shaded take on Dark),
+**Nord** (official ramp) and **OpenCode Orng**. Everything is CSS-variable
+driven and client-side; the server never hard-codes a color.
 
 ### How the theme system works
 
 | Piece | Where (`static/index.html` unless noted) | What it does |
 |---|---|---|
-| `[data-theme="…"]` blocks | lines ~10, ~60, ~111, ~163 | Four blocks × **44 `--rv-*` variables each** — page shell colors, 9 chroma token colors, 10 chart series colors |
-| Boot IIFE | ~2225–2231 | Reads `localStorage("rv-theme")` (validated against the allowlist), falls back to `prefers-color-scheme` (dark → Dark, else Light), sets `data-theme` on `<html>` before first paint — no flash |
-| Theme picker | `THEMES` array ~2355 + `setTheme()` / `renderThemeMenu()` ~2373+ | Builds the menu (id, label, two-color swatch chips); switching sets the attribute, persists to `localStorage`, and remaps Mermaid (any non-`light` id renders as `dark`) |
+| `[data-theme="…"]` blocks | lines ~10, ~60, ~112, ~163, ~215 | Five blocks × **44 `--rv-*` variables each** — page shell colors, 9 chroma token colors, 10 chart series colors |
+| Boot IIFE | ~2366–2376 | Reads `localStorage("rv-theme")` (validated against the allowlist), falls back to `prefers-color-scheme` (dark → Dark, else Light), sets `data-theme` on `<html>` before first paint — no flash |
+| Theme picker | `THEMES` array ~2499 + `setTheme()` / `renderThemeMenu()` ~2520+ | Builds the menu (id, label, two-color swatch chips); switching sets the attribute, persists to `localStorage`, and remaps Mermaid (any non-`light` id renders as `dark`) |
 | Chroma code tokens | `main.go:710–712` | The file server emits **class names only** (`chromahtml.WithClasses(true)`, `WithLineNumbers(true)`, inline `.ln` variant) — token colors resolve through `--rv-code-*`, so one var block restyles every lexed file type |
 | Charts | SVG chart engine | Series fills are written as `style="fill: var(--rv-chart-N)"`, so all 11 chart shapes re-color per theme automatically |
 
@@ -31,7 +31,7 @@ so rebuild or `go run .` to see it):
    attribute value and in `localStorage`, e.g. `dracula`.
 
 2. **Append one `[data-theme="dracula"]` block** after the last theme
-   block. The contract is **44 variables** — all four built-in blocks are
+   block. The contract is **44 variables** — all five built-in blocks are
    structurally identical, and every surface (tree, markdown, code
    tokens, CSV charts, overlays, scrollbars) hangs off them:
 
@@ -100,9 +100,9 @@ so rebuild or `go run .` to see it):
 
 3. **Register it in the picker** — two spots in the script blocks:
    ```js
-   // boot allowlist (~2225): saved themes outside this list fall back
+   // boot allowlist (~2369): saved themes outside this list fall back
    var THEMES = ['light', 'dark', 'nord', 'opencode', 'dracula'];
-   // picker menu (~2355): entries render as menu rows
+   // picker menu (~2499): entries render as menu rows
    var THEMES = [
        { id: 'light',    label: 'Light',         swatch: ['#ffffff', '#705dcf'] },
        { id: 'dracula',  label: 'Dracula',       swatch: ['#282a36', '#bd93f9'] },
@@ -130,3 +130,9 @@ Structure notes learned by shipping the system:
   `light` vs everything else to Mermaid's `default`/`dark`.
 - `prefers-color-scheme` picks only the built-ins; custom ids are always
   reachable through the menu (or `localStorage`).
+- A shipped live variant to crib from: **`rose` (Dark rose)** is the `dark`
+  block hue-rotated into pink — same structure, same contrast levels, and
+  a good starting point for any tinted take on an existing theme.
+- The `fold-switch` header button (code-fold Collapse/Expand) shares the
+  standalone action-button rule set with `.outline-btn` — declare new
+  header action styling there to keep every bar button uniform.

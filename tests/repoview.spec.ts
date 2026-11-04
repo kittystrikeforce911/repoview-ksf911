@@ -565,7 +565,7 @@ test.describe("Markdown raw/preview toggle", () => {
     await page.locator("#theme-toggle").click();
     const menu = page.locator("#theme-menu");
     await expect(menu).toBeVisible();
-    await expect(page.locator(".theme-menu-item")).toHaveCount(4);
+    await expect(page.locator(".theme-menu-item")).toHaveCount(5);
     // Close once so every loop cycle opens the menu from a clean state.
     await page.keyboard.press("Escape");
     await expect(menu).toBeHidden();
@@ -580,7 +580,7 @@ test.describe("Markdown raw/preview toggle", () => {
       // Selecting a theme closes the menu, so re-open it each cycle.
       await page.locator("#theme-toggle").click();
       await expect(menu).toBeVisible();
-      await menu.locator(".theme-menu-item", { hasText: label }).click();
+      await menu.locator(".theme-menu-item", { hasText: new RegExp("^" + label + "(✓)?$") }).click();
       await expect(menu).toBeHidden();
       await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
       expect(
@@ -1472,5 +1472,144 @@ test.describe("Collapse & fold", () => {
       ),
     ).toBeGreaterThan(0);
     await expect(switchBtn).toHaveText("Expand");
+  });
+});
+
+test.describe("Dark rose theme", () => {
+  // The pink-shaded take on Dark: ships as a first-class picker entry
+  // with the full 44-variable contract.
+  test("opens from the menu and paints pink-shaded dark chrome", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.locator("#theme-toggle").click();
+    const menu = page.locator("#theme-menu");
+    await expect(menu).toBeVisible();
+    await menu.locator(".theme-menu-item", { hasText: "Dark rose" }).click();
+    await expect(menu).toBeHidden();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "rose");
+    expect(
+      await page.evaluate(() => localStorage.getItem("rv-theme")),
+    ).toBe("rose");
+    // --rv-bg #2a1f27 on the body, --rv-link #f5a8c6 on the root.
+    expect(
+      await page.evaluate(
+        () => getComputedStyle(document.body).backgroundColor,
+      ),
+    ).toBe("rgb(42, 31, 39)");
+    expect(
+      await page.evaluate(() =>
+        getComputedStyle(document.documentElement)
+          .getPropertyValue("--rv-link")
+          .trim(),
+      ),
+    ).toBe("#f5a8c6");
+  });
+
+  test("persists across a reload", async ({ page }) => {
+    await page.goto("/");
+    await page.locator("#theme-toggle").click();
+    await page
+      .locator("#theme-menu .theme-menu-item", { hasText: "Dark rose" })
+      .click();
+    await page.reload();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "rose");
+  });
+
+  test("code tokens follow the pink colorway", async ({ page }) => {
+    await page.addInitScript(() =>
+      localStorage.setItem("rv-theme", "rose"),
+    );
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "sample.py" }).click();
+    await page.locator("#content-area .source-code").first().waitFor();
+    const colors = await page.evaluate(() => {
+      const token = document.querySelector(
+        "#content-area .source-code .k, #content-area .source-code .kd",
+      );
+      return {
+        token: token ? getComputedStyle(token).color : null,
+        keyVar: getComputedStyle(document.documentElement)
+          .getPropertyValue("--rv-code-key")
+          .trim(),
+      };
+    });
+    expect(colors.token).toBeTruthy();
+    // The token color resolves through --rv-code-key (hex → rgb).
+    expect(colors.token).toBe("rgb(245, 162, 200)");
+    expect(colors.keyVar).toBe("#f5a2c8");
+  });
+});
+
+test.describe("Fold switch styling", () => {
+  // The Collapse/Expand switch shares the standalone header action-button
+  // rule set (outline-btn / edit-dropdown-btn family): themed surfaces,
+  // 6px radius, active state flips to --rv-bg-active + accent border.
+  const probe = (page) =>
+    page.evaluate(() => {
+      const el = document.querySelector("#file-header-bar .fold-switch");
+      const cs = getComputedStyle(el);
+      const active = el.classList.contains("active");
+      const resolve = (value) => {
+        const d = document.createElement("div");
+        d.style.background = value;
+        document.body.appendChild(d);
+        const c = getComputedStyle(d).backgroundColor;
+        d.remove();
+        return c;
+      };
+      return {
+        active,
+        text: el.textContent,
+        radius: cs.borderRadius,
+        bg: cs.backgroundColor,
+        border: cs.borderColor,
+        color: cs.color,
+        expectBg: resolve(
+          active ? "var(--rv-bg-active)" : "var(--rv-bg-secondary)",
+        ),
+        expectBorder: resolve(
+          active ? "var(--rv-border-active)" : "var(--rv-border)",
+        ),
+        expectColor: resolve(active ? "var(--rv-link)" : "var(--rv-text)"),
+      };
+    });
+
+  test("matches the header action-button look at rest and when active", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "sample.py" }).click();
+    const btn = page.locator("#file-header-bar .fold-switch");
+    await btn.waitFor();
+
+    const resting = await probe(page);
+    expect(resting.active).toBe(false);
+    expect(resting.text).toBe("Collapse");
+    expect(resting.radius).toBe("6px");
+    expect(resting.bg).toBe(resting.expectBg);
+    expect(resting.border).toBe(resting.expectBorder);
+    expect(resting.color).toBe(resting.expectColor);
+
+    // Collapsing everything flips the switch into its active state.
+    await btn.click();
+    const active = await probe(page);
+    expect(active.active).toBe(true);
+    expect(active.text).toBe("Expand");
+    expect(active.bg).toBe(active.expectBg);
+    expect(active.border).toBe(active.expectBorder);
+    expect(active.color).toBe(active.expectColor);
+  });
+
+  test("is styled in the rose theme too (no hardcoded colors)", async ({
+    page,
+  }) => {
+    await page.addInitScript(() => localStorage.setItem("rv-theme", "rose"));
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "data.json" }).click();
+    await page.locator("#file-header-bar .fold-switch").waitFor();
+    const s = await probe(page);
+    expect(s.bg).toBe(s.expectBg);
+    expect(s.border).toBe(s.expectBorder);
   });
 });
