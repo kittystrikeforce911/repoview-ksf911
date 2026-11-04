@@ -13,34 +13,34 @@ hardening for the device handover.
 
 | # | Commit | Type | Title | Stage |
 |---|--------|------|-------|-------|
-| 1 | `c7edfaf` | fix | harden file server and websocket | API hardening |
-| 2 | `3133a95` | docs | refresh API reference table | Docs |
-| 3 | `abcceb0` | feat | read file as plain text, markdown or csv | Read-as menu |
-| 4 | `34fec62` | fix | dedicated plain-text reading view for `.txt` | Plain-text view |
-| 5 | `4912f7d` | feat | advanced column filter toolbar | CSV filters |
-| 6 | `a283525` | style | gofmt `update_test.go` | Housekeeping |
-| 7 | `d5d5d3c` | feat | XML viewer with tree, table and filters | XML viewer |
-| 8 | `0e33fb0` | feat | SVG chart engine + core charts | CSV charts |
-| 9 | `1be8d7c` | docs | refresh README features and add unified CHANGES.md | Docs |
-| 10 | `a507635` | feat | four-way color system (Light/Dark/Nord/OpenCode Orng) | Themes |
-| 11 | `d8c7919` | ci | Playwright webServer runs without mise; 60 s boot timeout | Tooling |
-| 12 | `f6cb0ee` | docs | handover notes and theme entry | Handover |
-| 13 | `7d100c3` | feat | CSV column sort from table headers + descriptive control labels | CSV sort/labels |
-| 14 | `2e01bad` | feat | "Wiki Markdown" in Read file as (`as=wiki`) | Read-as wiki |
-| 15 | `583f1fd` | feat | cross-device WebSocket origin tests + README access-guide | Interop |
-| 16 | `6dfd6ee` | docs | MIT license summary table (choosealicense.com) | Docs |
-| 17 | `78d7266` | feat | theme-aware chart palettes (`--rv-chart-N`) + hover guideline | Charts 7b |
-| 18 | `4df1646` | feat | histogram, bubble, heat map chart types | Charts 7c |
-| 19 | `83afeea` | docs | README screenshots (charts/themes, code view, read-as) | Docs |
-| 20 | `15d8c0e` | fix | theme menu clears the sidebar on short paths | UI |
-| 21 | `e2f78ef` | fix | padded line-number gutters across all numbered views | UI |
-| 22 | `a7f6a21` | docs | documentation.md + custom-themes guide | Docs |
-| 23 | `aac917e` | feat | collapse & fold for hierarchical views | UI |
-| 24 | `ce944db` | feat | styled fold switch + Dark rose theme | UI |
+| 1 | `1587af6` | fix | harden file server and websocket | API hardening |
+| 2 | `084cbf6` | docs | refresh API reference table | Docs |
+| 3 | `019f505` | feat | read file as plain text, markdown or csv | Read-as menu |
+| 4 | `9a13562` | fix | dedicated plain-text reading view for `.txt` | Plain-text view |
+| 5 | `338a589` | feat | advanced column filter toolbar | CSV filters |
+| 6 | `790bcb1` | style | gofmt `update_test.go` | Housekeeping |
+| 7 | `7dbcf87` | feat | XML viewer with tree, table and filters | XML viewer |
+| 8 | `f8354d8` | feat | SVG chart engine + core charts | CSV charts |
+| 9 | `1d3fd96` | docs | refresh README features and add unified CHANGES.md | Docs |
+| 10 | `5f65ee0` | feat | four-way color system (Light/Dark/Nord/OpenCode Orng) | Themes |
+| 11 | `4294154` | ci | Playwright webServer runs without mise; 60 s boot timeout | Tooling |
+| 12 | `7697b98` | docs | handover notes and theme entry | Handover |
+| 13 | `a291195` | feat | CSV column sort from table headers + descriptive control labels | CSV sort/labels |
+| 14 | `5e4d4a8` | feat | "Wiki Markdown" in Read file as (`as=wiki`) | Read-as wiki |
+| 15 | `bc9208f` | feat | cross-device WebSocket origin tests + README access-guide | Interop |
+| 16 | `e46f3a7` | docs | MIT license summary table (choosealicense.com) | Docs |
+| 17 | `d5ae0d9` | feat | theme-aware chart palettes (`--rv-chart-N`) + hover guideline | Charts 7b |
+| 18 | `04013cb` | feat | histogram, bubble, heat map chart types | Charts 7c |
+| 19 | `8a01525` | docs | README screenshots (charts/themes, code view, read-as) | Docs |
+| 20 | `2eea88a` | fix | theme menu clears the sidebar on short paths | UI |
+| 21 | `7f54483` | fix | padded line-number gutters across all numbered views | UI |
+| 22 | `633b21f` | docs | documentation.md + custom-themes guide | Docs |
+| 23 | `9c02eb1` | feat | collapse & fold for hierarchical views | UI |
+| 24 | `425d66d` | feat | styled fold switch + Dark rose theme | UI |
 
 ---
 
-## 1. `c7edfaf` — fix(api): harden file server and websocket
+## 1. `1587af6` — fix(api): harden file server and websocket
 
 **Summary.** Three security/robustness fixes in `main.go`: huge files are no
 longer rendered inline into every response, read-only endpoints no longer
@@ -71,7 +71,7 @@ Backend: `tooLarge` path, 405 matrix for all read-only endpoints, cross-origin
 
 ---
 
-## 2. `3133a95` — docs(api): refresh API reference table
+## 2. `084cbf6` — docs(api): refresh API reference table
 
 **Summary.** README API table brought up to date with the hardened endpoint
 contract: new response flags (`isSVG`, `isXML`, `isJSONL`, `tooLarge`,
@@ -83,7 +83,7 @@ read-only endpoints answer `GET`/`HEAD` only.
 
 ---
 
-## 3. `abcceb0` — feat(view): read file as plain text, markdown or csv
+## 3. `019f505` — feat(view): read file as plain text, markdown or csv
 
 **Summary.** New "Read file as" menu in the file header: any *text* file can
 be re-rendered through a different pipeline — plain text, Markdown or CSV
@@ -106,7 +106,7 @@ non-text rejection). Playwright 43 (menu present, URL-param plumbing).
 
 ---
 
-## 4. `34fec62` — fix(ui): dedicated plain-text reading view for `.txt`
+## 4. `9a13562` — fix(ui): dedicated plain-text reading view for `.txt`
 
 **Summary.** `.txt` files (and files read as `?as=txt`) render in a dedicated
 reading view instead of a syntax-highlighted code blob: verbatim lines with
@@ -131,7 +131,7 @@ view visibility; backend txt flag test; `go test` green.
 
 ---
 
-## 5. `4912f7d` — feat(csv): advanced column filter toolbar
+## 5. `338a589` — feat(csv): advanced column filter toolbar
 
 **Summary.** CSV views gain a real filter toolbar above the table: per-column
 operators (`contains`, `equals`, `regex`, greater, less, `empty`), match-all
@@ -158,14 +158,14 @@ removal, live count ("11 of 30" on `category contains warm`).
 
 ---
 
-## 6. `a283525` — style: gofmt update_test.go
+## 6. `790bcb1` — style: gofmt update_test.go
 
 **Summary.** One-line `gofmt` cleanup of `update_test.go`; no behaviour
 change (backend suite verified green).
 
 ---
 
-## 7. `d5d5d3c` — feat(xml): XML viewer with tree, table and filters
+## 7. `7dbcf87` — feat(xml): XML viewer with tree, table and filters
 
 **Summary.** `.xml` files (and anything read as `?as=xml`) get a client-side
 viewer with three views — Tree, Table, Code — and live element filters: tag
@@ -202,7 +202,7 @@ parse-error fallback, read-as menu path.
 
 ---
 
-## 8. `0e33fb0` — feat(csv): SVG chart engine + core charts
+## 8. `f8354d8` — feat(csv): SVG chart engine + core charts
 
 **Summary.** CSV views gain a **Charts** toggle beside Table/Records: eight
 hand-rolled SVG chart types configured through X / measure / aggregate /
@@ -273,7 +273,7 @@ across types in the probe run.
 
 ---
 
-## 9. `1be8d7c` — docs: refresh README features and add unified CHANGES.md
+## 9. `1d3fd96` — docs: refresh README features and add unified CHANGES.md
 
 **Summary.** README `## Features` rewritten to full coverage of what the
 branch ships (read-as menu, plain-text view, CSV filter toolbar, XML viewer,
@@ -295,7 +295,7 @@ Docs-only commit; no test impact.
 
 ---
 
-## 10. `a507635` — feat(theme): four-way color system (Light/Dark/Nord/OpenCode Orng)
+## 10. `5f65ee0` — feat(theme): four-way color system (Light/Dark/Nord/OpenCode Orng)
 
 **Summary.** The binary dark/light toggle becomes a theme picker in the
 breadcrumb bar: an ARIA `menu` of `menuitemradio` items with two-tone
@@ -347,7 +347,7 @@ Escape-close), dark colorway `.txt` regression (background never
 
 ---
 
-## 11. `d8c7919` — ci(tests): Playwright webServer runs without mise; 60 s boot timeout
+## 11. `4294154` — ci(tests): Playwright webServer runs without mise; 60 s boot timeout
 
 **Summary.** `tests/playwright.config.ts` invoked `mise x go` for the
 webServer on POSIX systems, which fails on machines without the mise
@@ -369,7 +369,7 @@ to boot it: 62 / 62 passed.
 
 ---
 
-## 12. `f6cb0ee` — docs: handover notes and theme entry
+## 12. `7697b98` — docs: handover notes and theme entry
 
 **Summary.** Device-handover documentation: `CHANGES.md` brought current
 (this file), a minimal-Debian development setup in the README and a temporal
@@ -393,7 +393,7 @@ Docs-only commit; no test impact.
 
 ---
 
-## 13. `7d100c3` — feat(csv): CSV column sort from table headers + descriptive control labels
+## 13. `a291195` — feat(csv): CSV column sort from table headers + descriptive control labels
 
 **Summary.** CSV tables gain click-to-sort headers with a three-way cycle
 (ascending → descending → off), a numeric-aware comparator and ARIA sort
@@ -442,7 +442,7 @@ cell; now iterates `row.cells`).
 
 ---
 
-## 14. `2e01bad` — feat(view): "Wiki Markdown" in Read file as (`as=wiki`)
+## 14. `5e4d4a8` — feat(view): "Wiki Markdown" in Read file as (`as=wiki`)
 
 **Summary.** The "Read file as" menu gains a fourth renderer: any inline
 text file can be re-read as Obsidian-style wiki markdown. Previously wiki
@@ -483,7 +483,7 @@ view with the menu item marked preferred.
 
 ---
 
-## 15. `583f1fd` — feat(api): cross-device WebSocket origin tests + README access guide
+## 15. `bc9208f` — feat(api): cross-device WebSocket origin tests + README access guide
 
 **Summary.** The WebSocket upgrade is already usable across devices
 (`checkSameOrigin` requires the Origin host to equal the request host, so a
@@ -511,7 +511,7 @@ port); `go test ./...` green; Playwright re-run unchanged (68/68).
 
 ---
 
-## 16. `6dfd6ee` — docs: MIT license summary table (choosealicense.com)
+## 16. `e46f3a7` — docs: MIT license summary table (choosealicense.com)
 
 **Summary.** The bare `MIT` under the README License section becomes the
 one-line choosealicense.com description plus its Permissions / Conditions /
@@ -533,7 +533,7 @@ Docs-only commit; all gates re-run green (68/68 Playwright).
 
 ---
 
-## 17. `78d7266` — feat(csv): theme-aware chart palettes + hover guideline
+## 17. `d5ae0d9` — feat(csv): theme-aware chart palettes + hover guideline
 
 **Summary.** The SVG chart palette is no longer hard-coded to one set of
 bright hexes: every series fill/stroke now resolves through new
@@ -582,7 +582,7 @@ JS parse gate re-run clean; no backend change.
 
 ---
 
-## 18. `4df1646` — feat(csv): histogram, bubble, heat map chart types
+## 18. `04013cb` — feat(csv): histogram, bubble, heat map chart types
 
 **Summary.** The Charts view grows from 8 to 11 shapes, closing out stage
 7c. All three new renderers build on the existing theme-variable palette
@@ -626,7 +626,7 @@ cells carry "bucket / colour" titles.
 
 ---
 
-## 19. `83afeea` — docs: README screenshots (charts/themes, code view, read-as)
+## 19. `8a01525` — docs: README screenshots (charts/themes, code view, read-as)
 
 **Summary.** The README gains a *Screenshots* section with three staged
 stills of the running app, filmed after stage 7c landed. The stageshow
@@ -656,7 +656,7 @@ Docs-only commit; gates re-run green (73/73 Playwright).
 
 ---
 
-## 20. `15d8c0e` — fix(ui): theme menu clears the sidebar on short paths
+## 20. `2eea88a` — fix(ui): theme menu clears the sidebar on short paths
 
 **Summary.** Owner-report: on short paths the open theme menu is
 blocked by the sidebar. Reproduced by measurement on `/main.go` at
@@ -707,7 +707,7 @@ re-run green.
 
 ---
 
-## 21. `e2f78ef` — fix(ui): padded line-number gutters across all numbered views
+## 21. `7f54483` — fix(ui): padded line-number gutters across all numbered views
 
 **Summary.** The owner asked to add right padding to the numbered lines
 inside code files. Where the numbers come from, verified by a rendered-
@@ -752,7 +752,7 @@ decision); the reading view (numbers toggled on) asserts its existing
 
 ---
 
-## 22. `a7f6a21` — docs: documentation.md with the theming + custom-themes guide
+## 22. `633b21f` — docs: documentation.md with the theming + custom-themes guide
 
 **Summary.** New top-level `documentation.md`, linked from the README,
 carrying the theming reference:
@@ -769,7 +769,7 @@ carrying the theming reference:
   example block, the two registration spots (boot allowlist list + the
   `THEMES` picker array with the `swatch: [background, accent]` format),
   a verification checklist, and structural notes: the source-order
-  gotcha for same-specificity media overrides (the `15d8c0e` lesson),
+  gotcha for same-specificity media overrides (the `2eea88a` lesson),
   Mermaid's binary light/dark mapping, and the fact that custom ids don't
   participate in `prefers-color-scheme`
 
@@ -782,7 +782,7 @@ Docs-only commit, no behavior change; gates green (79/79).
 
 ---
 
-## 23. `aac917e` — feat(ui): collapse & fold for hierarchical views
+## 23. `9c02eb1` — feat(ui): collapse & fold for hierarchical views
 
 **Summary.** The owner asked for a simple collapse switch for
 hierarchical file types — python functions, JSON, XML, markdown titles,
@@ -842,7 +842,7 @@ re-run green (83/83; Go tests, vet, gofmt, JS parse).
 
 ---
 
-## 24. `ce944db` — feat(ui): styled fold switch + Dark rose theme
+## 24. `425d66d` — feat(ui): styled fold switch + Dark rose theme
 
 **Summary.** Three follow-ups from the owner, scoped exactly: give the
 new collapse/fold switch real styling, ship a pink-shaded version of
@@ -901,55 +901,55 @@ tests, vet, gofmt, JS parse).
 ### Backend — `main.go` / `main_test.go`
 | Change | Commit |
 |--------|--------|
-| `tooLarge` cap (>16 MB), `405` on non-GET, same-origin `/ws` | `c7edfaf` |
-| `as=` renderer override (txt/md/csv/xml) | `abcceb0`, `d5d5d3c` |
-| `isPlainText` flag for `.txt` reading view | `34fec62` |
-| Chroma class-based token formatter (`WithClasses`) | `a507635` |
-| `as=wiki` override: force wiki expansion anywhere | `2e01bad` |
-| `isXML` / `rawXML` flags | `d5d5d3c` |
+| `tooLarge` cap (>16 MB), `405` on non-GET, same-origin `/ws` | `1587af6` |
+| `as=` renderer override (txt/md/csv/xml) | `019f505`, `7dbcf87` |
+| `isPlainText` flag for `.txt` reading view | `9a13562` |
+| Chroma class-based token formatter (`WithClasses`) | `5f65ee0` |
+| `as=wiki` override: force wiki expansion anywhere | `5e4d4a8` |
+| `isXML` / `rawXML` flags | `7dbcf87` |
 
 ### Frontend — `static/index.html`
 | Change | Commit |
 |--------|--------|
-| Download affordance for large files | `c7edfaf` |
-| "Read file as" menu + `?as=` plumbing | `abcceb0`, `d5d5d3c` |
-| Plain-text reading view (wrap, line numbers) | `34fec62` |
-| CSV filter toolbar, chips, live count | `4912f7d` |
-| XML viewer (tree/table/code + filters) | `d5d5d3c` |
-| SVG chart engine + 8 chart types | `0e33fb0` |
-| Chip body removes filter | `4912f7d` (✕), `0e33fb0` (body) |
-| Four-way theme picker + themed chroma/plain-text CSS | `a507635` |
-| CSV column sorting from headers + control labels | `7d100c3` |
-| "Wiki Markdown" read-as menu item | `2e01bad` |
-| Chart series palette via theme vars + hover guideline | `78d7266` |
-| Histogram / bubble / heat map chart types | `4df1646` |
-| README screenshots (charts/themes, code, read-as) | `83afeea` |
-| Theme menu clears the sidebar on short paths | `15d8c0e` |
-| Padded line-number gutters across numbered views | `e2f78ef` |
-| documentation.md + custom-themes guide | `a7f6a21` |
-| Collapse & fold for hierarchical views | `aac917e` |
-| Styled fold switch & Dark rose theme | `ce944db` |
+| Download affordance for large files | `1587af6` |
+| "Read file as" menu + `?as=` plumbing | `019f505`, `7dbcf87` |
+| Plain-text reading view (wrap, line numbers) | `9a13562` |
+| CSV filter toolbar, chips, live count | `338a589` |
+| XML viewer (tree/table/code + filters) | `7dbcf87` |
+| SVG chart engine + 8 chart types | `f8354d8` |
+| Chip body removes filter | `338a589` (✕), `f8354d8` (body) |
+| Four-way theme picker + themed chroma/plain-text CSS | `5f65ee0` |
+| CSV column sorting from headers + control labels | `a291195` |
+| "Wiki Markdown" read-as menu item | `5e4d4a8` |
+| Chart series palette via theme vars + hover guideline | `d5ae0d9` |
+| Histogram / bubble / heat map chart types | `04013cb` |
+| README screenshots (charts/themes, code, read-as) | `8a01525` |
+| Theme menu clears the sidebar on short paths | `2eea88a` |
+| Padded line-number gutters across numbered views | `7f54483` |
+| documentation.md + custom-themes guide | `633b21f` |
+| Collapse & fold for hierarchical views | `9c02eb1` |
+| Styled fold switch & Dark rose theme | `425d66d` |
 
 ### Docs
 | Change | Commit |
 |--------|--------|
-| API reference table refresh | `3133a95`, `abcceb0`, `d5d5d3c` |
-| Feature list: read-as, filters, charts, XML; `CHANGES.md` created | `1be8d7c` |
-| README feature bullet for theming | `a507635` |
-| Debian dev-env setup, `TODO.md` handover notes, this file brought current | `f6cb0ee` |
-| README "Access from other devices" cross-device guide | `583f1fd` |
-| MIT license summary table (choosealicense.com) | `6dfd6ee` |
+| API reference table refresh | `084cbf6`, `019f505`, `7dbcf87` |
+| Feature list: read-as, filters, charts, XML; `CHANGES.md` created | `1d3fd96` |
+| README feature bullet for theming | `5f65ee0` |
+| Debian dev-env setup, `TODO.md` handover notes, this file brought current | `7697b98` |
+| README "Access from other devices" cross-device guide | `bc9208f` |
+| MIT license summary table (choosealicense.com) | `e46f3a7` |
 | `CHANGELOG.md` `[Unreleased]` entries per commit | all feature/fix commits |
 
 ### Tests & fixtures
 | Change | Commit |
 |--------|--------|
-| Backend hardening + as/xml/override tests | `c7edfaf`, `abcceb0`, `34fec62`, `d5d5d3c` |
+| Backend hardening + as/xml/override tests | `1587af6`, `019f505`, `9a13562`, `7dbcf87` |
 | `tests/repoview.spec.ts` 43 → 59 → 62 tests | filter/x txt/xml/charts commits, then theme commits |
-| Theme suite (menu cycle, dark `.txt` regression, classed code view) | `a507635` |
-| Sort/label suite + read-as-wiki suite; `wiki-notes.txt` fixture | `7d100c3` (sort), `2e01bad` (wiki) |
-| Playwright webServer without mise; 60 s boot timeout | `d8c7919` |
-| Fixtures: `testdata/colors.csv`, `testdata/sample.xml` | `4912f7d`, `d5d5d3c` |
+| Theme suite (menu cycle, dark `.txt` regression, classed code view) | `5f65ee0` |
+| Sort/label suite + read-as-wiki suite; `wiki-notes.txt` fixture | `a291195` (sort), `5e4d4a8` (wiki) |
+| Playwright webServer without mise; 60 s boot timeout | `4294154` |
+| Fixtures: `testdata/colors.csv`, `testdata/sample.xml` | `338a589`, `7dbcf87` |
 
 ---
 
@@ -961,14 +961,14 @@ tests, vet, gofmt, JS parse).
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **88 / 88 passed** — 83 at `aac917e`; +5 fold-switch/rose tests at `ce944db` |
+| Playwright (Chromium) | **88 / 88 passed** — 83 at `9c02eb1`; +5 fold-switch/rose tests at `425d66d` |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (branch follow-up)
 
-- ~~Stage 7b — chart palettes + hover guideline~~ — shipped `78d7266`
-- ~~Stage 7c — histogram / bubble / heatmap chart types~~ — shipped `4df1646`
-- ~~Stage 8 — screenshots for README/demo~~ — shipped `83afeea`;
+- ~~Stage 7b — chart palettes + hover guideline~~ — shipped `d5ae0d9`
+- ~~Stage 7c — histogram / bubble / heatmap chart types~~ — shipped `04013cb`
+- ~~Stage 8 — screenshots for README/demo~~ — shipped `8a01525`;
   remaining action: push `feat/viewer-upgrade` and open the PR (draft text
   handed to the owner — `gh` is not installed and the remote needs
   credentials, so pushing is the owner's call)

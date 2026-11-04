@@ -125,7 +125,7 @@ Structure notes learned by shipping the system:
   `@media (max-width: 768px)` block sits *before* the theme section, so
   any mobile override of a theme-section rule added inside that early
   block is silently ignored — repeat the override after the base rule
-  instead (this bit the theme-menu positioning fix, `15d8c0e`).
+  instead (this bit the theme-menu positioning fix, `2eea88a`).
 - Mermaid diagrams don't get their own palette — the picker only maps
   `light` vs everything else to Mermaid's `default`/`dark`.
 - `prefers-color-scheme` picks only the built-ins; custom ids are always

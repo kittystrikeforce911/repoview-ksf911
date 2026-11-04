@@ -13,8 +13,8 @@
   styled fold switch + Dark rose theme (§24): CSV sort
   + labels, wiki read-as, cross-device
   access, MIT table, chart palettes + hover guideline (7b), histogram/
-  bubble/heat map (7c), README screenshots (stage 8, `83afeea`), hash
-  pinning (`825ca86`), TODO refresh (`190d0a3`). Stage 8's PR is drafted,
+  bubble/heat map (7c), README screenshots (stage 8, `8a01525`), hash
+  pinning (`462f316`), TODO refresh (`811f9d8`). Stage 8's PR is drafted,
   not opened: `gh` is not installed and pushing needs credentials, so see
   the owner-facing draft at `~/Desktop/pr-feat-viewer-upgrade.md` — do
   not push without the owner's go-ahead. Verify state with:
@@ -25,17 +25,17 @@
 - Commit list (newest last):
   | Commit | Title |
   |--------|-------|
-  | `c7edfaf` | fix(api): harden file server and websocket |
-  | `3133a95` | docs(api): refresh API reference table |
-  | `abcceb0` | feat(view): read file as plain text, markdown or csv |
-  | `34fec62` | fix(ui): dedicated plain-text reading view for .txt |
-  | `4912f7d` | feat(csv): advanced column filter toolbar |
-  | `a283525` | style: gofmt update_test.go |
-  | `d5d5d3c` | feat(xml): xml viewer with tree, table and filters |
-  | `0e33fb0` | feat(csv): SVG chart engine + core charts |
-  | `1be8d7c` | docs: refresh README features and add unified CHANGES.md |
-  | `a507635` | feat(theme): four-way color system (Light/Dark/Nord/OpenCode Orng) |
-  | `d8c7919` | ci(tests): Playwright webServer runs without mise; 60 s boot timeout |
+  | `1587af6` | fix(api): harden file server and websocket |
+  | `084cbf6` | docs(api): refresh API reference table |
+  | `019f505` | feat(view): read file as plain text, markdown or csv |
+  | `9a13562` | fix(ui): dedicated plain-text reading view for .txt |
+  | `338a589` | feat(csv): advanced column filter toolbar |
+  | `790bcb1` | style: gofmt update_test.go |
+  | `7dbcf87` | feat(xml): xml viewer with tree, table and filters |
+  | `f8354d8` | feat(csv): SVG chart engine + core charts |
+  | `1d3fd96` | docs: refresh README features and add unified CHANGES.md |
+  | `5f65ee0` | feat(theme): four-way color system (Light/Dark/Nord/OpenCode Orng) |
+  | `4294154` | ci(tests): Playwright webServer runs without mise; 60 s boot timeout |
   | *(this docs commit)* | docs: handover notes and theme entry |
 - Last verified state: `go build` ✅ · `go vet` ✅ · `gofmt` clean ✅ ·
   `go test ./...` ok ✅ · **Playwright 88/88 passed** ✅ (through CHANGES.md
@@ -81,7 +81,7 @@
 ## BUGS / open questions
 
 - **"Theme menu blocked by the sidebar on short paths" (reported 2026-11-04)** —
-  RESOLVED as `15d8c0e` (CHANGES.md §20): `margin-left: auto` moved
+  RESOLVED as `2eea88a` (CHANGES.md §20): `margin-left: auto` moved
   from `#theme-toggle` to `#theme-menu-wrap` so the toggle + menu pin to
   the bar's right edge, and the menu renders `position: fixed` anchored
   under the constant-height bar — it escapes the sticky-bar subtree that
@@ -91,7 +91,7 @@
 - **"Dark UI renders .txt as white background" (reported by user)** —
   NOT reproducible on this build with any flow (``/example.txt``,
   `?as=txt`, sidebar click after dark toggle, `UPPERCASE.TXT`, dark OS
-  preference). Mitigations shipped in `a507635`: explicit theme backgrounds
+  preference). Mitigations shipped in `5f65ee0`: explicit theme backgrounds
   on `pre.plain-text`/`.source-code`, class-based chroma tokens. If it still
   reproduces on the user's device, prime suspect = stale cached
   index.html from an older binary → hard-reload (Ctrl+F5) / restart the
@@ -100,7 +100,7 @@
   environment diagram rendering will fail (JS console error, md text still
   readable). Candidate follow-up: vendor the script or lazy-load with a
   fallback notice.
-- **Playwright webServer** — FIXED in `d8c7919`: the config used to invoke
+- **Playwright webServer** — FIXED in `4294154`: the config used to invoke
   `mise x go` (fails without mise) with a 15 s timeout that a cold compile
   could exceed. It now uses plain `go run ..` on every platform with a 60 s
   boot timeout, and reopened the fallback: build + serve the binary
