@@ -38,7 +38,7 @@ hardening for the device handover.
 | 23 | `9c02eb1` | feat | collapse & fold for hierarchical views | UI |
 | 24 | `425d66d` | feat | styled fold switch + Dark rose theme | UI |
 | 25 | `fd98d04` | docs | re-point hash pins after branch identity rewrite | Housekeeping |
-| 26 | `pending` | docs | re-film README stills, outdated-GIF note, public-repo notes | Docs |
+| 26 | `5fb96c9` | docs | re-film README stills, outdated-GIF note, public-repo notes | Docs |
 
 ---
 
@@ -914,7 +914,7 @@ section titles above are the authoritative hash record.
 
 ---
 
-## 26. docs: re-film README stills, outdated-GIF note, public-repo phrasing
+## 26. `5fb96c9` — docs: re-film README stills, outdated-GIF note, public-repo phrasing
 
 **Summary.** The fork ground is going public, so the README gets a face
 renewal. The three staged stills of §19 were re-filmed against the
