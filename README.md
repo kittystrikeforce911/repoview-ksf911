@@ -1,10 +1,23 @@
-# RepoView
+<h1 align="center">
+   RepoView
+</h1>
 
-A lightweight, single-binary local folder viewer that replicates the GitHub UI for browsing files, rendering Markdown, and viewing CSV data.
+A lightweight, single-binary local file viewer that replicates the GitHub UI for browsing files, rendering Markdown or plotting CSV data.
 
-![repoview-demo](https://github.com/user-attachments/assets/940a295f-bbc4-4949-b1a1-770f39781b2c)
+<p align="center">
+  <a href="#screenshots">Screenshots</a> -
+  <a href="#features">Features</a> -
+  <a href="#release-one-liners">Install</a> -
+  <a href="#usage">Usage</a> -
+  <a href="#development">Development</a> -
+  <a href="#license">License and credits</a>
+</p>
+<p align="center">
+<img src="https://github.com/user-attachments/assets/940a295f-bbc4-4949-b1a1-770f39781b2c" alt="">
+</p>
 
-> **Note:** the demo GIF is from an earlier build — it predates theming,
+> [!NOTE]
+> The demo GIF is from an earlier build — it predates theming,
 > CSV charts, the filter toolbar, "Read file as" and collapse & fold. The
 > stills in [Screenshots](#screenshots) below are current.
 
@@ -58,18 +71,6 @@ I noticed my marketing team, when working with Claude Code and lots of markdown 
 
 ## Install
 
-### From source
-
-```bash
-git clone https://github.com/kittystrikeforce911/repoview-ksf911.git
-cd repoview-ksf911
-go build -o repoview .
-```
-
-Requires a Go toolchain (see `go.mod` for the floor). The binary is
-self-contained: all markup, styles and scripts are embedded at build time,
-so nothing else is needed at runtime.
-
 ### Release one-liners
 
 Once a version is published via the tag release flow (below):
@@ -86,9 +87,17 @@ irm https://raw.githubusercontent.com/kittystrikeforce911/repoview-ksf911/master
 
 Downloads the latest release binary to `%LOCALAPPDATA%\Programs\repoview`.
 
-> If you mirror this repository privately, the raw-script URL and the
-> release downloads on the mirror require an authenticated session or
-> token; installing from source avoids that.
+### From source
+
+```bash
+git clone https://github.com/kittystrikeforce911/repoview-ksf911.git
+cd repoview-ksf911
+go build -o repoview .
+```
+
+Requires a Go toolchain (see `go.mod` for the floor). The binary is
+self-contained: all markup, styles and scripts are embedded at build time,
+so nothing else is needed at runtime.
 
 ## Usage
 
@@ -157,10 +166,18 @@ send no `Origin` header are unaffected.
 
 ## Theming & custom themes
 
-RepoView ships five built-in themes — **Light** (Obsidian default light),
-**Dark** (Catppuccin-based), **Dark rose** (a pink-shaded take on Dark),
-**Nord** (official ramp) and **OpenCode Orng**. Everything is CSS-variable
-driven and client-side; the server never hard-codes a color.
+RepoView ships five built-in themes
+
+| Nickname | Notes | Source |
+| ---: | --- | --- |
+| Light | Harsh on the eyes; It's a light theme by nature. | Obsidian's default light |
+| Dark | Recommended for daily and prolonged usage. | Catppuccin-based. From the original repository |
+| Dark Rose | A pink take on the Dark theme. Recommended for one-shot sessions | Dark theme |
+| Nord | Yet another Nord theme. Alternative to Dark | Official ramp |
+| OpenCode Orng | The contrast can have negative impact in long lasting sessions. Very industrial color combination | - |
+
+> [!TIP] 
+> Everything is CSS-variable driven and client-side; the server never hard-codes a color.
 
 ### How the theme system works
 
@@ -195,6 +212,8 @@ so rebuild or `go run .` to see it):
    Each block also sets `color-scheme: dark` (or `light`), which drives
    native scrollbars and form controls. Worked example (values illustrative
    — adapt to the target palette):
+   <details>
+   <summary>Show code</summary>
 
    ```css
    [data-theme="dracula"] {
@@ -248,6 +267,8 @@ so rebuild or `go run .` to see it):
        --rv-chart-10: #b4befe;
    }
    ```
+
+</details>
 
 3. **Register it in the picker** — two spots in the script blocks:
    ```js
