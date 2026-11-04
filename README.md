@@ -51,7 +51,12 @@ show the fold UI holds up under a tinted theme.
 
 ## Why
 
-I noticed my marketing team, when working with Claude Code and lots of markdown files, pushing commits to GitHub just to read them with a nice UI. That seemed backwards — why should you need to commit and push just to preview your docs? RepoView gives you that same GitHub reading experience locally, instantly.
+<blockquote>
+   <p>
+   " I noticed my marketing team, when working with Claude Code and lots of markdown files, pushing commits to GitHub just to read them with a nice UI. That seemed backwards — why should you need to commit and push just to preview your docs? RepoView gives you that same GitHub reading experience locally, instantly. "
+   </p>
+   <a href="https://github.com/nvquanghuy/repoview">nvquanghuy on the original repository</a>
+</blockquote>
 
 ## Features
 
