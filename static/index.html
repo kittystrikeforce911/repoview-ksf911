@@ -1084,6 +1084,28 @@
             .csv-filter-value {
                 width: 140px;
             }
+
+            /* ── CSV table header sorting ─────────────────────────────── */
+            .csv-table thead th[data-col] {
+                cursor: pointer;
+                user-select: none;
+            }
+            .csv-table thead th[data-col]:hover {
+                background: var(--rv-bg-hover);
+            }
+            .csv-table thead th:focus-visible {
+                outline: 2px solid var(--rv-border-active);
+                outline-offset: -2px;
+            }
+            .csv-sort-mark {
+                font-size: 11px;
+                opacity: 0.75;
+                margin-left: 4px;
+            }
+            .csv-table thead th.csv-sorted-asc,
+            .csv-table thead th.csv-sorted-desc {
+                background: var(--rv-bg-active);
+            }
             .csv-filter-add {
                 padding: 4px 10px;
                 font-size: 12px;
@@ -3930,11 +3952,55 @@
 
                     var csvFilters = []; // [{col, op, value}]
                     var csvFilterMode = "all";
+                    var csvSort = null; // { col, dir: "asc"|"desc" } | null
 
                     // Server-rendered table is the unfiltered baseline.
                     var csvTableEl = document.createElement("div");
                     csvTableEl.className = "csv-table";
                     csvTableEl.innerHTML = data.content;
+
+                    // Click-to-sort lives on the container element so it
+                    // survives re-rendering: the pristine server-rendered
+                    // table and client-rendered sorted/filtered tables are
+                    // swapped underneath it.
+                    function csvSortCycle(col) {
+                        if (!csvSort || csvSort.col !== col) {
+                            csvSort = { col: col, dir: "asc" };
+                        } else if (csvSort.dir === "asc") {
+                            csvSort = { col: col, dir: "desc" };
+                        } else {
+                            csvSort = null;
+                        }
+                        applyFilters();
+                    }
+                    csvTableEl.addEventListener("click", function (e) {
+                        var th = e.target.closest("th");
+                        if (
+                            !th ||
+                            !th.hasAttribute("data-col") ||
+                            th.classList.contains("csv-row-link-header")
+                        ) {
+                            return;
+                        }
+                        csvSortCycle(
+                            parseInt(th.getAttribute("data-col"), 10),
+                        );
+                    });
+                    csvTableEl.addEventListener("keydown", function (e) {
+                        var th = e.target;
+                        if (
+                            th.tagName !== "TH" ||
+                            (e.key !== "Enter" && e.key !== " ") ||
+                            !th.hasAttribute("data-col") ||
+                            th.classList.contains("csv-row-link-header")
+                        ) {
+                            return;
+                        }
+                        e.preventDefault();
+                        csvSortCycle(
+                            parseInt(th.getAttribute("data-col"), 10),
+                        );
+                    });
 
                     // ── Filter bar ──
                     var filterBar = document.createElement("div");
@@ -3942,6 +4008,12 @@
 
                     var colSelect = document.createElement("select");
                     colSelect.className = "csv-filter-col";
+                    colSelect.setAttribute(
+                        "aria-label",
+                        "Filter column: which column the rule tests",
+                    );
+                    colSelect.title =
+                        "Filter column: which column the rule tests";
                     var colOptions = getParsedCSV().headers;
                     for (var ci = 0; ci < colOptions.length; ci++) {
                         var colOpt = document.createElement("option");
@@ -3952,6 +4024,12 @@
 
                     var opSelect = document.createElement("select");
                     opSelect.className = "csv-filter-op";
+                    opSelect.setAttribute(
+                        "aria-label",
+                        "Filter rule: how the column value is compared",
+                    );
+                    opSelect.title =
+                        "Filter rule: how the column value is compared";
                     [
                         ["contains", "contains"],
                         ["equals", "equals"],
@@ -3971,6 +4049,9 @@
                     valInput.className = "csv-filter-value";
                     valInput.placeholder = "Value…";
                     valInput.type = "text";
+                    valInput.setAttribute("aria-label", "Filter value");
+                    valInput.title =
+                        "Filter value: the text or number the rule looks for";
 
                     var invalidMsg = document.createElement("span");
                     invalidMsg.className = "csv-filter-invalid";
@@ -3978,6 +4059,12 @@
                     var addBtn = document.createElement("button");
                     addBtn.className = "csv-filter-add";
                     addBtn.textContent = "+ Add";
+                    addBtn.setAttribute(
+                        "aria-label",
+                        "Add filter rule: applies this rule alongside the others",
+                    );
+                    addBtn.title =
+                        "Add filter rule: applies this rule alongside the others";
                     addBtn.onclick = function () {
                         var col = parseInt(colSelect.value, 10);
                         var op = opSelect.value;
@@ -4014,9 +4101,21 @@
                     var modeAllBtn = document.createElement("button");
                     modeAllBtn.className = "csv-filter-mode active";
                     modeAllBtn.textContent = "match all";
+                    modeAllBtn.setAttribute(
+                        "aria-label",
+                        "Match all: rows must satisfy every rule",
+                    );
+                    modeAllBtn.title =
+                        "Match all: rows must satisfy every rule";
                     var modeAnyBtn = document.createElement("button");
                     modeAnyBtn.className = "csv-filter-mode";
                     modeAnyBtn.textContent = "match any";
+                    modeAnyBtn.setAttribute(
+                        "aria-label",
+                        "Match any: rows must satisfy at least one rule",
+                    );
+                    modeAnyBtn.title =
+                        "Match any: rows must satisfy at least one rule";
                     modeAllBtn.onclick = function () {
                         csvFilterMode = "all";
                         modeAllBtn.className = "csv-filter-mode active";
@@ -4033,6 +4132,8 @@
                     var clearBtn = document.createElement("button");
                     clearBtn.className = "csv-filter-clear";
                     clearBtn.textContent = "Clear";
+                    clearBtn.setAttribute("aria-label", "Clear filters");
+                    clearBtn.title = "Clear filters: remove all rules";
                     clearBtn.onclick = function () {
                         csvFilters = [];
                         renderChips();
@@ -4088,6 +4189,11 @@
 
                     var chartTypeSel = document.createElement("select");
                     chartTypeSel.className = "csv-chart-type";
+                    chartTypeSel.setAttribute(
+                        "aria-label",
+                        "Chart shape: how the data is drawn",
+                    );
+                    chartTypeSel.title = "Chart shape: how the data is drawn";
                     [
                         ["bar", "Bar"],
                         ["hbar", "Bar (horizontal)"],
@@ -4106,10 +4212,28 @@
 
                     var chartXSel = document.createElement("select");
                     chartXSel.className = "csv-chart-x";
+                    chartXSel.setAttribute(
+                        "aria-label",
+                        "X axis: column for the categories or buckets",
+                    );
+                    chartXSel.title =
+                        "X axis: column for the categories or buckets";
                     var chartMSel = document.createElement("select");
                     chartMSel.className = "csv-chart-measure";
+                    chartMSel.setAttribute(
+                        "aria-label",
+                        "Measure: the numeric column being aggregated",
+                    );
+                    chartMSel.title =
+                        "Measure: the numeric column being aggregated";
                     var chartAggSel = document.createElement("select");
                     chartAggSel.className = "csv-chart-agg";
+                    chartAggSel.setAttribute(
+                        "aria-label",
+                        "Aggregate: how rows combine into one value per X",
+                    );
+                    chartAggSel.title =
+                        "Aggregate: how rows combine into one value per X";
                     ["sum", "avg", "min", "max", "count"].forEach(function (a) {
                         var o = document.createElement("option");
                         o.value = a;
@@ -4118,6 +4242,12 @@
                     });
                     var chartBySel = document.createElement("select");
                     chartBySel.className = "csv-chart-color";
+                    chartBySel.setAttribute(
+                        "aria-label",
+                        "Colour by: split into one series per value",
+                    );
+                    chartBySel.title =
+                        "Colour by: split into one series per value";
 
                     var chartNote = document.createElement("span");
                     chartNote.className = "csv-chart-note";
@@ -4319,6 +4449,96 @@
                         chipsWrap.appendChild(modeSeg);
                     }
 
+                    // decorateSortableHeaders marks every data column of
+                    // the current table (server-rendered or client-rendered)
+                    // as click-to-sort: a data-col index, hint title and
+                    // aria-label, keyboard focus, and the ▲/▼ indicator plus
+                    // aria-sort on the active column. Idempotent — safe to
+                    // call after every table render.
+                    function decorateSortableHeaders() {
+                        var headRow = csvTableEl.querySelector("thead tr");
+                        if (!headRow) return;
+                        var headers = getParsedCSV().headers;
+                        for (var i = 0; i < headRow.children.length; i++) {
+                            var th = headRow.children[i];
+                            if (th.classList.contains("csv-row-link-header")) {
+                                continue;
+                            }
+                            var name =
+                                headers[i] != null
+                                    ? headers[i]
+                                    : th.textContent.trim();
+                            th.setAttribute("data-col", String(i));
+                            th.setAttribute("tabindex", "0");
+                            var state = "";
+                            if (csvSort && csvSort.col === i) {
+                                state =
+                                    csvSort.dir === "asc"
+                                        ? "ascending"
+                                        : "descending";
+                            }
+                            if (state) {
+                                th.setAttribute("aria-sort", state);
+                            } else {
+                                th.removeAttribute("aria-sort");
+                            }
+                            var hint = "Sort by " + name;
+                            hint +=
+                                state === "ascending"
+                                    ? " — ascending now; click for descending"
+                                    : state === "descending"
+                                      ? " — descending now; click to clear sorting"
+                                      : " — click to sort ascending";
+                            th.setAttribute("title", hint);
+                            th.setAttribute("aria-label", hint);
+                            th.classList.toggle(
+                                "csv-sorted-asc",
+                                state === "ascending",
+                            );
+                            th.classList.toggle(
+                                "csv-sorted-desc",
+                                state === "descending",
+                            );
+                            var mark = th.querySelector(".csv-sort-mark");
+                            if (!mark) {
+                                mark = document.createElement("span");
+                                mark.className = "csv-sort-mark";
+                                mark.setAttribute("aria-hidden", "true");
+                                th.appendChild(mark);
+                            }
+                            mark.textContent =
+                                state === "ascending"
+                                    ? " ▲"
+                                    : state === "descending"
+                                      ? " ▼"
+                                      : "";
+                        }
+                    }
+
+                    // csvSortCompare orders two parsed rows by one column.
+                    // Both cells numeric → numeric order (weights, ratings);
+                    // otherwise case-insensitive text order; mixed columns
+                    // fall back to text. Ties keep file order (stable sort).
+                    function csvSortCompare(a, b, col, dir) {
+                        var av = String(
+                            a.cells[col] == null ? "" : a.cells[col],
+                        ).trim();
+                        var bv = String(
+                            b.cells[col] == null ? "" : b.cells[col],
+                        ).trim();
+                        var an = parseFloat(av);
+                        var bn = parseFloat(bv);
+                        var c = 0;
+                        if (!isNaN(an) && !isNaN(bn)) {
+                            c = an - bn;
+                        } else if (av.toLowerCase() < bv.toLowerCase()) {
+                            c = -1;
+                        } else if (av.toLowerCase() > bv.toLowerCase()) {
+                            c = 1;
+                        }
+                        return dir === "desc" ? -c : c;
+                    }
+
                     function applyFilters() {
                         var parsed = getParsedCSV();
                         var indices = csvFilteredIndices(
@@ -4326,7 +4546,7 @@
                             csvFilters,
                             csvFilterMode,
                         );
-                        if (csvFilters.length === 0) {
+                        if (!csvSort && csvFilters.length === 0) {
                             // Restore the server-rendered table verbatim.
                             csvTableEl.innerHTML = data.content;
                         } else {
@@ -4334,18 +4554,41 @@
                             indices.forEach(function (i) {
                                 shown.push(parsed.rows[i]);
                             });
+                            if (csvSort) {
+                                shown = shown.slice().sort(function (a, b) {
+                                    return csvSortCompare(
+                                        a,
+                                        b,
+                                        csvSort.col,
+                                        csvSort.dir,
+                                    );
+                                });
+                            }
                             csvTableEl.innerHTML = renderCSVTableHTML(
                                 parsed.headers,
                                 shown,
                             );
                         }
-                        if (csvFilters.length) {
+                        if (csvFilters.length || csvSort) {
+                            var sortNote = "";
+                            if (csvSort) {
+                                sortNote =
+                                    " · sorted by " +
+                                    (parsed.headers[csvSort.col] || "?") +
+                                    (csvSort.dir === "asc" ? " ▲" : " ▼");
+                            }
                             countEl.textContent =
-                                "Showing " + indices.length + " of " + parsed.rows.length + " rows";
+                                "Showing " +
+                                indices.length +
+                                " of " +
+                                parsed.rows.length +
+                                " rows" +
+                                sortNote;
                             countEl.style.display = "";
                         } else {
                             countEl.style.display = "none";
                         }
+                        decorateSortableHeaders();
                         bindRowLinkClicks();
                         if (csvActiveView === "charts") {
                             renderChartInto();
@@ -5271,8 +5514,8 @@
                 for (var j = 0; j < rows.length; j++) {
                     var row = rows[j];
                     html += "<tr>";
-                    for (var k = 0; k < row.length; k++) {
-                        html += "<td>" + esc(String(row[k])) + "</td>";
+                    for (var k = 0; k < row.cells.length; k++) {
+                        html += "<td>" + esc(String(row.cells[k])) + "</td>";
                     }
                     html +=
                         '<td class="csv-row-link"><button class="csv-record-link-btn" data-row="' +

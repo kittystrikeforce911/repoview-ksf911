@@ -24,7 +24,8 @@ hardening for the device handover.
 | 9 | `1be8d7c` | docs | refresh README features and add unified CHANGES.md | Docs |
 | 10 | `a507635` | feat | four-way color system (Light/Dark/Nord/OpenCode Orng) | Themes |
 | 11 | `d8c7919` | ci | Playwright webServer runs without mise; 60 s boot timeout | Tooling |
-| 12 | *(this commit)* | docs | handover notes and theme entry | Handover |
+| 12 | `f6cb0ee` | docs | handover notes and theme entry | Handover |
+| 13 | *(this commit)* | feat | CSV column sort from table headers + descriptive control labels | CSV sort/labels |
 
 ---
 
@@ -357,7 +358,7 @@ to boot it: 62 / 62 passed.
 
 ---
 
-## 12. *(this commit)* — docs: handover notes and theme entry
+## 12. `f6cb0ee` — docs: handover notes and theme entry
 
 **Summary.** Device-handover documentation: `CHANGES.md` brought current
 (this file), a minimal-Debian development setup in the README and a temporal
@@ -378,6 +379,52 @@ change.
 
 ### Tests
 Docs-only commit; no test impact.
+
+---
+
+## 13. *(this commit)* — feat(csv): CSV column sort from table headers + descriptive control labels
+
+**Summary.** CSV tables gain click-to-sort headers with a three-way cycle
+(ascending → descending → off), a numeric-aware comparator and ARIA sort
+state; every filter, chart and header control is given a descriptive
+`aria-label` + tooltip. Desktop-quality data-tooling interoperability:
+comparator behaviour matches spreadsheet sorting (numbers order as numbers),
+and the pristine server-rendered table is restored verbatim when sorting is
+off.
+
+### Added
+- Click any header to sort: no sort → ascending → descending → no sort;
+  the table body re-renders client-side around the filtered row set
+  (filters + sort compose), and the pristine server-rendered table is
+  restored verbatim when no filters and no sort remain
+- Sort state surfaces: `aria-sort="ascending|descending"` on the active
+  `th`, ▲/▼ indicator span, highlighted header background, hover affordance,
+  keyboard focus (tabindex) with Enter/Space activation, and a
+  "Showing X of Y rows · sorted by weight ▲" note in the count element
+- Numeric-aware comparator: both cells parse as numbers → numeric order
+  (`0.35 < 1.40`); otherwise case-insensitive text order; mixed columns
+  fall back to text; ties keep file order (stable sort)
+- Record links stay correct while sorted: the per-row → button still
+  carries the original 1-based row number
+- Labels on all CSV controls: filter column ("...which column the rule
+  tests"), filter rule, filter value, add rule, clear, match all/match
+  any, and chart shape/X axis/measure/aggregate/colour by — each an
+  `aria-label` mirrored to a tooltip
+- Header hints: "Sort by rating — click to sort ascending" (clicking keeps
+  the hint current with the actual state; stays accurate after each cycle)
+
+### Files
+`static/index.html` (+~170/−8), `tests/repoview.spec.ts` (+119)
+
+### Tests
+Playwright 62 → 66 (+4): the click cycle (file order → ascending →
+descending → pristine restore, with `aria-sort` and ▲/▼ transitions),
+numeric-aware sorting combined with an active filter (weight ▲ over the
+"warm" subset: Peach 0.47 first, "11 of 30 rows · sorted by weight ▲"),
+record-link integrity while sorted (`#record-17` reachable from the
+top-sorted row), and the control-label spell-outs across the filter bar,
+sortable headers and the chart bar. Backend untouched — `go test ./...`
+unchanged.
 
 ---
 
@@ -403,6 +450,7 @@ Docs-only commit; no test impact.
 | SVG chart engine + 8 chart types | `0e33fb0` |
 | Chip body removes filter | `4912f7d` (✕), `0e33fb0` (body) |
 | Four-way theme picker + themed chroma/plain-text CSS | `a507635` |
+| CSV column sorting from headers + control labels | *(this commit)* |
 
 ### Docs
 | Change | Commit |
@@ -410,7 +458,7 @@ Docs-only commit; no test impact.
 | API reference table refresh | `3133a95`, `abcceb0`, `d5d5d3c` |
 | Feature list: read-as, filters, charts, XML; `CHANGES.md` created | `1be8d7c` |
 | README feature bullet for theming | `a507635` |
-| Debian dev-env setup, `TODO.md` handover notes, this file brought current | *(this docs commit)* |
+| Debian dev-env setup, `TODO.md` handover notes, this file brought current | `f6cb0ee` |
 | `CHANGELOG.md` `[Unreleased]` entries per commit | all feature/fix commits |
 
 ### Tests & fixtures
@@ -432,7 +480,7 @@ Docs-only commit; no test impact.
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **62 / 62 passed** — re-verified at `d8c7919` with a cold webServer boot |
+| Playwright (Chromium) | **66 / 66 passed** — 62 verified at `f6cb0ee`; +4 CSV sort/label tests at *(this commit)* |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (not in this branch yet)

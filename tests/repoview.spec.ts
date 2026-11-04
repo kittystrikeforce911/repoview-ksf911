@@ -425,6 +425,139 @@ test.describe("Markdown raw/preview toggle", () => {
     await expect(page.locator(".plain-text .plain-line").first()).toBeVisible();
   });
 
+  test("CSV column sort cycles ascending, descending, off from headers", async ({
+    page,
+  }) => {
+    await page.goto("/colors.csv");
+    const firstId = page
+      .locator(".csv-table table tbody tr")
+      .first()
+      .locator("td")
+      .first();
+    const weightTh = page.locator(".csv-table th", { hasText: "weight" }).first();
+
+    // Server-rendered pristine table starts in file order (ids 1..30).
+    await expect(firstId).toHaveText("1");
+    await expect(weightTh).not.toHaveAttribute("aria-sort");
+
+    await weightTh.click();
+    await expect(weightTh).toHaveAttribute("aria-sort", "ascending");
+    await expect(weightTh).toContainText("▲");
+    await expect(firstId).toHaveText("17"); // Lightest row: Beige 0.35
+
+    await weightTh.click();
+    await expect(weightTh).toHaveAttribute("aria-sort", "descending");
+    await expect(weightTh).toContainText("▼");
+    await expect(firstId).toHaveText("9"); // Heaviest row: Charcoal 1.40
+
+    await weightTh.click();
+    await expect(weightTh).not.toHaveAttribute("aria-sort");
+    await expect(firstId).toHaveText("1"); // Pristine server-rendered order back
+    await expect(weightTh).not.toContainText("▲");
+    await expect(weightTh).not.toContainText("▼");
+  });
+
+  test("CSV sort is numeric-aware and combines with filters", async ({ page }) => {
+    await page.goto("/colors.csv");
+    await page.locator(".csv-table th", { hasText: "weight" }).first().click();
+    await page.locator(".csv-filter-col").selectOption({ label: "category" });
+    await page.locator(".csv-filter-op").selectOption("contains");
+    await page.locator(".csv-filter-value").fill("warm");
+    await page.locator(".csv-filter-add").click();
+    await expect(page.locator(".csv-filter-count")).toContainText(
+      "11 of 30 rows · sorted by weight ▲",
+    );
+    const names = page.locator(
+      ".csv-table table tbody tr td:nth-child(2)",
+    );
+    await expect(names).toHaveCount(11);
+    // Lightest warm colors first: Peach 0.47, then Salmon 0.48.
+    await expect(names.first()).toHaveText("Peach");
+    await expect(names.nth(1)).toHaveText("Salmon");
+  });
+
+  test("CSV record links still target the original row while sorted", async ({
+    page,
+  }) => {
+    await page.goto("/colors.csv");
+    const weightTh = page.locator(".csv-table th", { hasText: "weight" }).first();
+    await weightTh.click(); // ascending: row 17 (Beige 0.35) sorts on top
+    await page
+      .locator(".csv-table table tbody tr")
+      .first()
+      .locator(".csv-record-link-btn")
+      .click();
+    await expect(page.locator(".view-toggle button", { hasText: "Records" })).toHaveClass(
+      /active/,
+    );
+    await expect(page.locator(".csv-record-card#record-17")).toBeVisible();
+  });
+
+  test("CSV control labels describe what each control does", async ({ page }) => {
+    await page.goto("/colors.csv");
+    await expect(page.locator(".csv-filter-col")).toHaveAttribute(
+      "aria-label",
+      "Filter column: which column the rule tests",
+    );
+    await expect(page.locator(".csv-filter-op")).toHaveAttribute(
+      "aria-label",
+      "Filter rule: how the column value is compared",
+    );
+    await expect(page.locator(".csv-filter-add")).toHaveAttribute(
+      "aria-label",
+      "Add filter rule: applies this rule alongside the others",
+    );
+    await expect(page.locator(".csv-filter-value")).toHaveAttribute(
+      "aria-label",
+      "Filter value",
+    );
+    // Match-mode buttons exist only while filter chips are shown
+    // (renderChips appends them next to the chips), so create one filter
+    // and check, then clear.
+    await page.locator(".csv-filter-col").selectOption({ label: "rating" });
+    await page.locator(".csv-filter-op").selectOption("gt");
+    await page.locator(".csv-filter-value").fill("3");
+    await page.locator(".csv-filter-add").click();
+    await expect(page.locator(".csv-filter-mode.active")).toHaveAttribute(
+      "aria-label",
+      "Match all: rows must satisfy every rule",
+    );
+    await page.locator(".csv-filter-clear").click();
+    const ratingTh = page.locator(".csv-table th", { hasText: "rating" }).first();
+    await expect(ratingTh).toHaveAttribute(
+      "aria-label",
+      "Sort by rating — click to sort ascending",
+    );
+    await ratingTh.click();
+    await expect(ratingTh).toHaveAttribute(
+      "aria-label",
+      "Sort by rating — ascending now; click for descending",
+    );
+
+    // Chart configuration bar carries the same kind of labels.
+    await page.locator(".view-toggle button", { hasText: "Charts" }).click();
+    await expect(page.locator(".csv-chart-type")).toHaveAttribute(
+      "aria-label",
+      "Chart shape: how the data is drawn",
+    );
+    await expect(page.locator(".csv-chart-x")).toHaveAttribute(
+      "aria-label",
+      "X axis: column for the categories or buckets",
+    );
+    await expect(page.locator(".csv-chart-measure")).toHaveAttribute(
+      "aria-label",
+      "Measure: the numeric column being aggregated",
+    );
+    await expect(page.locator(".csv-chart-agg")).toHaveAttribute(
+      "aria-label",
+      "Aggregate: how rows combine into one value per X",
+    );
+    await expect(page.locator(".csv-chart-color")).toHaveAttribute(
+      "aria-label",
+      "Colour by: split into one series per value",
+    );
+  });
+
   test("Theme picker switches Light, Dark, Nord and OpenCode colorways", async ({
     page,
   }) => {

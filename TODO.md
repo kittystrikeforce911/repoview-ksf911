@@ -29,23 +29,23 @@
   | `d8c7919` | ci(tests): Playwright webServer runs without mise; 60 s boot timeout |
   | *(this docs commit)* | docs: handover notes and theme entry |
 - Last verified state: `go build` ✅ · `go vet` ✅ · `gofmt` clean ✅ ·
-  `go test ./...` ok ✅ · **Playwright 62/62 passed** ✅
+  `go test ./...` ok ✅ · **Playwright 66/66 passed** ✅ (through CHANGES.md
+  §13)
 - Full change record: see `CHANGES.md` (per-commit detail + cross-index).
   Keep `CHANGES.md` updated with each new commit; `CHANGELOG.md` stays the
   per-commit `[Unreleased]` entry log.
 
 ## NEXT CHANGES (agreed roadmap, in order)
 
-1. **CSV column sorting (click header) + descriptive labels**
-   - Click a `<th>` to sort: cycle ascending → descending → none, on the
-     filtered row set (`applyFilters` in `static/index.html`); numeric-aware
-     comparator; indicator glyph (▲/▼) + `aria-sort` on the active column,
-     sort resets per session (never on the server-rendered pristine table).
-   - Descriptive labels: `aria-label` + `title` on the filter toolbar
-     controls (column/operator/value/add/clear/match-mode), sort headers and
-     chart config selects; small visible hint labels in the toolbar.
-   - Tests: Playwright (order flips on colors.csv `rating`/`weight`, label
-     assertions); update `applyFilters` to client-render when sort is set.
+> Workflow note (portability-first): every stage below ships as one
+> self-contained green commit in its own host/build environment — no new
+> dependencies, frontend-only where possible, backend readable in one file
+> (`main.go`).
+
+1. ~~**CSV column sorting (click header) + descriptive labels**~~ —
+   **SHIPPED as CHANGES.md §13** (click-to-cycle asc/desc/off,
+   numeric-aware, `aria-sort`, labels across filter/sort/chart controls,
+   Playwright 62 → 66).
 2. **Wiki Markdown in "Read file as"** (backend + frontend)
    - `main.go`: accept `as=wiki` in the override switch; make
      `renderMarkdown(w, data, allowWiki bool)`; `as=wiki` forces
