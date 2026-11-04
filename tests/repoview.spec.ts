@@ -753,6 +753,78 @@ test.describe("Markdown raw/preview toggle", () => {
     expect(parseFloat(hy2!)).toBeLessThan(parseFloat(hy!));
   });
 
+  test("CSV charts: histogram bins a numeric X column", async ({ page }) => {
+    await page.goto("/colors.csv");
+    await page.locator(".view-toggle button", { hasText: "Charts" }).click();
+    await page.locator(".csv-chart-x").selectOption({ label: "weight" });
+    await page.locator(".csv-chart-type").selectOption("histogram");
+
+    const hist = page.locator("svg.csv-chart.chart-histogram");
+    await expect(hist).toBeVisible();
+    const rects = hist.locator("rect.chart-rect");
+    await expect(rects.first()).toBeVisible();
+    const count = await rects.count();
+    expect(count).toBeGreaterThanOrEqual(3);
+    expect(count).toBeLessThanOrEqual(10);
+    await expect(rects.first().locator("title")).toContainText("rows");
+
+    // Non-numeric X column is refused with a helpful empty state
+    await page.locator(".csv-chart-x").selectOption({ label: "category" });
+    await expect(
+      page.locator(".csv-chart-empty", { hasText: "Histogram needs numeric values in the X column." }),
+    ).toBeVisible();
+  });
+
+  test("CSV charts: bubble sizes with the aggregated measure", async ({ page }) => {
+    await page.goto("/colors.csv");
+    await page.locator(".view-toggle button", { hasText: "Charts" }).click();
+    await page.locator(".csv-chart-x").selectOption({ label: "category" });
+    await page.locator(".csv-chart-type").selectOption("bubble");
+
+    const bubbles = page.locator("svg.csv-chart.chart-bubble circle.chart-dot");
+    // Three category buckets: cool, neutral, warm
+    await expect(bubbles).toHaveCount(3);
+    const radii = await bubbles.evaluateAll((els) =>
+      els.map((e) => parseFloat((e as SVGElement).getAttribute("r") || "0")),
+    );
+    // Area-scaled radii above the minimum draw threshold for these values
+    for (const r of radii) {
+      expect(r).toBeGreaterThan(20);
+    }
+    await expect(bubbles.first().locator("title")).toContainText(": ");
+
+    // Bucket labels are drawn under the bubbles
+    await expect(page.locator("svg.csv-chart.chart-bubble text.chart-tick")).toHaveCount(3);
+  });
+
+  test("CSV charts: heat map grid with colour rows", async ({ page }) => {
+    await page.goto("/colors.csv");
+    await page.locator(".view-toggle button", { hasText: "Charts" }).click();
+    await page.locator(".csv-chart-x").selectOption({ label: "category" });
+    await page.locator(".csv-chart-type").selectOption("heat");
+
+    // Without a colour column: one value row across the buckets
+    const cells = page.locator("svg.csv-chart.chart-heat rect.chart-heat-cell");
+    await expect(cells).toHaveCount(3);
+
+    // With a colour column: one row per colour entry, one cell per pairing
+    await page.locator(".csv-chart-color").selectOption({ label: "category" });
+    await expect(page.locator(".chart-legend-item")).toHaveCount(3);
+    await expect(cells).toHaveCount(9);
+    await expect(cells).not.toHaveCount(0);
+
+    // Intensity ramp: the strongest cell reaches full fill-opacity while
+    // empty pairings stay at the faint floor
+    const styles = await cells.evaluateAll((els) =>
+      els.map((e) => (e as SVGElement).getAttribute("style") || ""),
+    );
+    expect(styles.some((s) => s.includes("fill-opacity:0.96"))).toBe(true);
+    expect(styles.some((s) => s.includes("fill-opacity:0.04"))).toBe(true);
+
+    // Cross cells carry "bucket / colour" titles
+    await expect(cells.first().locator("title")).toContainText(" / ");
+  });
+
   test("CSV charts render the filtered row set", async ({ page }) => {
     await page.goto("/colors.csv");
     // Filter before opening charts

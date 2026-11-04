@@ -4253,9 +4253,12 @@
                         ["bar", "Bar"],
                         ["hbar", "Bar (horizontal)"],
                         ["stacked", "Stacked bar"],
+                        ["histogram", "Histogram"],
                         ["line", "Line"],
                         ["area", "Area"],
                         ["scatter", "Scatter"],
+                        ["bubble", "Bubble"],
+                        ["heat", "Heat map"],
                         ["pie", "Pie"],
                         ["donut", "Donut"],
                     ].forEach(function (p) {
@@ -6398,6 +6401,229 @@
                         legend: legendLine.map(function (l) {
                             return '<span class="chart-legend-item"><i style="background:' + l.color + '"></i>' +
                                 esc(String(l.key)) + "</span>";
+                        }).join(""),
+                        title: chartTitle(),
+                    };
+                }
+
+                if (type === "histogram") {
+                    // Equal-width bins over the numeric X column; bar height
+                    // = row count per bin. Filters already applied — bins
+                    // live-respond like every other shape.
+                    if (!hasNumericCells(parsed.rows, cfg.x)) {
+                        return { empty: "Histogram needs numeric values in the X column." };
+                    }
+                    var hVals = [];
+                    indices.forEach(function (i) {
+                        var v = parseFloat(parsed.rows[i].cells[cfg.x]);
+                        if (!isNaN(v) && isFinite(v)) hVals.push(v);
+                    });
+                    if (!hVals.length) {
+                        return { empty: "No numeric values in the X column." };
+                    }
+                    var hLo = Math.min.apply(null, hVals);
+                    var hHi = Math.max.apply(null, hVals);
+                    if (hLo === hHi) hHi = hLo + 1;
+                    var HBINS = 10;
+                    var hW = (hHi - hLo) / HBINS;
+                    var hCounts = [];
+                    for (var hb = 0; hb < HBINS; hb++) hCounts.push(0);
+                    hVals.forEach(function (v) {
+                        var bi = Math.min(HBINS - 1, Math.floor((v - hLo) / hW));
+                        hCounts[bi]++;
+                    });
+                    var hM = { l: 56, r: 20, t: 20, b: 96 };
+                    var hPlotW = 860 - hM.l - hM.r;
+                    var hPlotH = 420 - hM.t - hM.b;
+                    var hMax = niceChartMax(Math.max.apply(null, hCounts));
+                    var hStep = hPlotW / HBINS;
+                    var hBw = hStep * 0.86;
+                    var partsH = chartGridY(hM, hPlotH, hMax, hPlotW);
+                    hCounts.forEach(function (c, i) {
+                        var h = (c / hMax) * hPlotH;
+                        var x = hM.l + i * hStep + (hStep - hBw) / 2;
+                        var y = hM.t + hPlotH - h;
+                        var range =
+                            fmtChartNum(hLo + i * hW) + "-" + fmtChartNum(hLo + (i + 1) * hW);
+                        if (h > 0) {
+                            partsH +=
+                                '<rect class="chart-rect" x="' + x.toFixed(2) + '" y="' + y.toFixed(2) +
+                                '" width="' + hBw.toFixed(2) + '" height="' + h.toFixed(2) +
+                                '" style="fill:var(--rv-chart-1)"><title>' +
+                                esc(range + ": " + c + " rows") + "</title></rect>";
+                        }
+                        if (i % 2 === 0 || i === HBINS - 1) {
+                            var lx = hM.l + i * hStep + hStep / 2;
+                            var ly = hM.t + hPlotH + 6;
+                            partsH +=
+                                '<text transform="rotate(-40 ' + lx.toFixed(2) + " " + ly.toFixed(2) + ')" x="' +
+                                lx.toFixed(2) + '" y="' + (ly + 10).toFixed(2) +
+                                '" text-anchor="end" class="chart-tick">' +
+                                fmtChartNum(hLo + i * hW) + "</text>";
+                        }
+                    });
+                    partsH += chartXAxisLine(hM, hPlotW, hPlotH);
+                    return {
+                        svg: svgOpen("chart-histogram", "rows by " + colName(cfg.x) + " bin") +
+                            partsH + "</svg>",
+                        legend: "",
+                        title: "rows by " + colName(cfg.x) + " bin",
+                    };
+                }
+
+                if (type === "bubble") {
+                    // One bubble per X bucket, radius area-scaled to the
+                    // aggregate; with a colour column the bucket takes the
+                    // dominant entry's series colour.
+                    var gBub = csvChartGroups(parsed, indices, cfg);
+                    if (!gBub.buckets.length) {
+                        return { empty: "Nothing to plot for the chosen measure." };
+                    }
+                    var legendBub = legendFor(gBub.buckets);
+                    var bSorted = gBub.buckets.slice().sort(function (a, c) {
+                        return bucketTotal(c, cfg.agg) - bucketTotal(a, cfg.agg);
+                    });
+                    if (bSorted.length > 40) {
+                        var bRest = { key: "Other", groups: {} };
+                        bSorted.slice(40).forEach(function (b) {
+                            Object.keys(b.groups).forEach(function (gk) {
+                                bRest.groups[gk] = (bRest.groups[gk] || []).concat(b.groups[gk]);
+                            });
+                        });
+                        bSorted = bSorted.slice(0, 40);
+                        bSorted.push(bRest);
+                    }
+                    var bubM = { l: 56, r: 20, t: 30, b: 96 };
+                    var bPlotW = 860 - bubM.l - bubM.r;
+                    var bPlotH = 420 - bubM.t - bubM.b;
+                    var bMax = niceChartMax(
+                        Math.max.apply(null, bSorted.map(function (b) {
+                            return Math.abs(bucketTotal(b, cfg.agg));
+                        })),
+                    );
+                    var bStep = bPlotW / bSorted.length;
+                    var partsB = "";
+                    bSorted.forEach(function (b, bi) {
+                        var v = bucketTotal(b, cfg.agg);
+                        var bx = bubM.l + bi * bStep + bStep / 2;
+                        var by = bubM.t + bPlotH / 2;
+                        partsB +=
+                            '<text transform="rotate(-40 ' + bx.toFixed(2) + " " + (bubM.t + bPlotH + 6) + ')" x="' +
+                            bx.toFixed(2) + '" y="' + (bubM.t + bPlotH + 16).toFixed(2) +
+                            '" text-anchor="end" class="chart-tick">' +
+                            esc(chartTrunc(b.key, 16)) + "</text>";
+                        if (bMax <= 0) return;
+                        var br = 46 * Math.sqrt(Math.abs(v) / bMax);
+                        if (br < 2) return;
+                        var bColor = CSV_CHART_COLORS[0];
+                        if (legendBub.length) {
+                            var bBest = "", bBestN = -1;
+                            Object.keys(b.groups).forEach(function (gk) {
+                                if (b.groups[gk].length > bBestN) {
+                                    bBestN = b.groups[gk].length;
+                                    bBest = gk;
+                                }
+                            });
+                            bColor = chartGroupColor(bBest, legendBub);
+                        }
+                        partsB +=
+                            '<circle class="chart-dot" cx="' + bx.toFixed(2) + '" cy="' + by.toFixed(2) +
+                            '" r="' + br.toFixed(2) + '" style="fill:' + bColor +
+                            ';fill-opacity:0.55;stroke:' + bColor + '"><title>' +
+                            esc(b.key + ": " + fmtChartNum(v)) + "</title></circle>";
+                    });
+                    partsB +=
+                        '<line x1="' + bubM.l + '" y1="' + (bubM.t + bPlotH) + '" x2="' +
+                        (bubM.l + bPlotW) + '" y2="' + (bubM.t + bPlotH) +
+                        '" style="stroke:var(--rv-text-tertiary);stroke-width:1"/>';
+                    return {
+                        svg: svgOpen("chart-bubble", chartTitle()) + partsB + "</svg>",
+                        legend: legendBub.map(function (l) {
+                            return '<span class="chart-legend-item"><i style="background:' +
+                                l.color + '"></i>' + esc(String(l.key)) + "</span>";
+                        }).join(""),
+                        title: chartTitle(),
+                    };
+                }
+
+                if (type === "heat") {
+                    // Colour-column rows x X-bucket columns; cell opacity
+                    // ramps with the aggregated value (theme series colour
+                    // hue, area-proportional like the bar max).
+                    var gHeat = csvChartGroups(parsed, indices, cfg);
+                    if (!gHeat.buckets.length) {
+                        return { empty: "Nothing to plot for the chosen measure." };
+                    }
+                    var legendHeat = legendFor(gHeat.buckets);
+                    var hKeys = legendHeat.length
+                        ? legendHeat.map(function (l) { return l.key; })
+                        : [""];
+                    var kSorted = gHeat.buckets.slice().sort(function (a, c) {
+                        return bucketTotal(c, cfg.agg) - bucketTotal(a, cfg.agg);
+                    });
+                    if (kSorted.length > 40) {
+                        var kRest = { key: "Other", groups: {} };
+                        kSorted.slice(40).forEach(function (b) {
+                            Object.keys(b.groups).forEach(function (gk) {
+                                kRest.groups[gk] = (kRest.groups[gk] || []).concat(b.groups[gk]);
+                            });
+                        });
+                        kSorted = kSorted.slice(0, 40);
+                        kSorted.push(kRest);
+                    }
+                    var kM = { l: 170, r: 20, t: 20, b: 96 };
+                    var kPlotW = 860 - kM.l - kM.r;
+                    var kPlotH = 420 - kM.t - kM.b;
+                    var kRowH = Math.min(30, kPlotH / Math.max(1, hKeys.length));
+                    var kCW = kPlotW / kSorted.length;
+                    var kMax = 0;
+                    kSorted.forEach(function (b) {
+                        hKeys.forEach(function (gk) {
+                            var v = csvAggApply(b.groups[gk] || [], cfg.agg);
+                            if (v > kMax) kMax = v;
+                        });
+                    });
+                    var partsK = "";
+                    hKeys.forEach(function (gk, ri) {
+                        var kRowLabel =
+                            gk === ""
+                                ? cfg.agg === "count"
+                                    ? "rows"
+                                    : cfg.agg + " " + colName(cfg.m)
+                                : gk;
+                        var kMid = kM.t + ri * kRowH + kRowH / 2;
+                        partsK +=
+                            '<text x="' + (kM.l - 8) + '" y="' + (kMid + 4).toFixed(2) +
+                            '" text-anchor="end" class="chart-label">' +
+                            esc(chartTrunc(kRowLabel, 22)) + "</text>";
+                        kSorted.forEach(function (b, ci) {
+                            var v = csvAggApply(b.groups[gk] || [], cfg.agg);
+                            var frac = kMax > 0 ? v / kMax : 0;
+                            var kx = kM.l + ci * kCW;
+                            var ky = kM.t + ri * kRowH;
+                            partsK +=
+                                '<rect class="chart-heat-cell" x="' + kx.toFixed(2) + '" y="' + ky.toFixed(2) +
+                                '" width="' + (kCW - 1).toFixed(2) + '" height="' + (kRowH - 1).toFixed(2) +
+                                '" style="fill:var(--rv-chart-1);fill-opacity:' +
+                                (0.04 + 0.92 * frac).toFixed(2) + '"><title>' +
+                                esc(gk === "" ? b.key : b.key + " / " + gk) + ": " + fmtChartNum(v) +
+                                "</title></rect>";
+                        });
+                    });
+                    kSorted.forEach(function (b, ci) {
+                        var kc = kM.l + ci * kCW + kCW / 2;
+                        var ky = kM.t + hKeys.length * kRowH + 6;
+                        partsK +=
+                            '<text transform="rotate(-40 ' + kc.toFixed(2) + " " + ky.toFixed(2) + ')" x="' +
+                            kc.toFixed(2) + '" y="' + (ky + 10).toFixed(2) +
+                            '" text-anchor="end" class="chart-tick">' +
+                            esc(chartTrunc(b.key, 16)) + "</text>";
+                    });
+                    return {
+                        svg: svgOpen("chart-heat", chartTitle()) + partsK + "</svg>",
+                        legend: legendHeat.map(function (l) {
+                            return '<span class="chart-legend-item"><i style="background:' +
+                                l.color + '"></i>' + esc(String(l.key)) + "</span>";
                         }).join(""),
                         title: chartTitle(),
                     };

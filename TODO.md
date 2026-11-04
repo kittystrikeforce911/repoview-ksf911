@@ -29,8 +29,8 @@
   | `d8c7919` | ci(tests): Playwright webServer runs without mise; 60 s boot timeout |
   | *(this docs commit)* | docs: handover notes and theme entry |
 - Last verified state: `go build` ✅ · `go vet` ✅ · `gofmt` clean ✅ ·
-  `go test ./...` ok ✅ · **Playwright 70/70 passed** ✅ (through CHANGES.md
-  §17)
+  `go test ./...` ok ✅ · **Playwright 73/73 passed** ✅ (through CHANGES.md
+  §18)
 - Full change record: see `CHANGES.md` (per-commit detail + cross-index).
   Keep `CHANGES.md` updated with each new commit; `CHANGELOG.md` stays the
   per-commit `[Unreleased]` entry log.
@@ -59,9 +59,11 @@
    CHANGES.md §17** (`--rv-chart-1…10` theme vars in all four themes;
    palette writes as inline `style="fill:var(--rv-chart-N)"`; hover
    guideline via `attachChartCursor`, pie/donut exempt; Playwright
-   68 → 70). Remaining: **Stage 7c** — histogram, bubble, heatmap chart
-   types; **Stage 8** — `stageshow` docs screenshots + create the PR for
-   `feat/viewer-upgrade`.
+   68 → 70).
+   ~~**Stage 7c** — histogram, bubble, heatmap~~ — **SHIPPED as
+   CHANGES.md §18** (three new shapes on the theme-variable palette;
+   Playwright 70 → 73). Remaining: **Stage 8** — `stageshow` docs
+   screenshots + create the PR for `feat/viewer-upgrade`.
 
 ## BUGS / open questions
 

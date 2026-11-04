@@ -29,7 +29,8 @@ hardening for the device handover.
 | 14 | `2e01bad` | feat | "Wiki Markdown" in Read file as (`as=wiki`) | Read-as wiki |
 | 15 | `583f1fd` | feat | cross-device WebSocket origin tests + README access-guide | Interop |
 | 16 | `6dfd6ee` | docs | MIT license summary table (choosealicense.com) | Docs |
-| 17 | *(this commit)* | feat | theme-aware chart palettes (`--rv-chart-N`) + hover guideline | Charts 7b |
+| 17 | `78d7266` | feat | theme-aware chart palettes (`--rv-chart-N`) + hover guideline | Charts 7b |
+| 18 | *(this commit)* | feat | histogram, bubble, heat map chart types | Charts 7c |
 
 ---
 
@@ -526,7 +527,7 @@ Docs-only commit; all gates re-run green (68/68 Playwright).
 
 ---
 
-## 17. *(this commit)* — feat(csv): theme-aware chart palettes + hover guideline
+## 17. `78d7266` — feat(csv): theme-aware chart palettes + hover guideline
 
 **Summary.** The SVG chart palette is no longer hard-coded to one set of
 bright hexes: every series fill/stroke now resolves through new
@@ -559,7 +560,9 @@ while you read values — the polish item queued as stage 7b.
   opacity, `pointer-events: none`
 
 ### Files
-`static/index.html` (+~120/−14 incl. 4×10 theme palette lines)
+`static/index.html` (+132/−13: four theme palette blocks of ten, the var
+palette array, nine attribute→style conversion sites, the cursor CSS and
+`attachChartCursor`)
 
 ### Tests
 Playwright 68 → 70 (+2): the palette test asserts the inline
@@ -570,6 +573,48 @@ pointer across the rendered bar chart (guide hidden → follows pointer with
 x decreasing leftwards → hides on leave), verifies pie wheels render no
 cursor line, and checks the hbar x-span (170→782) with vertical tracking.
 JS parse gate re-run clean; no backend change.
+
+---
+
+## 18. *(this commit)* — feat(csv): histogram, bubble, heat map chart types
+
+**Summary.** The Charts view grows from 8 to 11 shapes, closing out stage
+7c. All three new renderers build on the existing theme-variable palette
+(§17), reuse `csvChartGroups` bucketing and the 40-bucket cap, and need no
+new dependencies:
+
+- **Histogram** — equal-width bins over the numeric X column (10 bins
+  across [min…max], bar height = row count per bin); non-numeric X gets
+  a helpful empty state. A distribution view right inside the viewer —
+  the row set is the actively filtered one, like every other shape.
+- **Bubble** — one bubble per X bucket with area-proportional radius
+  (√ value scaling against the nice-rounded max) and the aggregate shown
+  in the tooltip; with a colour column the bucket takes its dominant
+  entry's series colour. Sorted descending with a merged "Other" bucket
+  past 40.
+- **Heat map** — colour-entry rows × X-bucket columns grid; cell opacity
+  ramps `0.04…0.96` with value/maxV so empty pairings read as an empty
+  grid, tooltips carry "bucket / colour: value", rows share the colour
+  legend. Whole-grid view of a category-crossed measure in one glance.
+
+### Added
+- Picker options: Histogram, Bubble, Heat map (between Scatter and Pie)
+- Three renderer branches in `renderCSVChart` (histogram is pure-numeric
+  driven, bubble/heat ride `csvChartGroups` + `bucketTotal` + `legendFor`)
+- Titles: histogram = "rows by <X> bin"; bubble/heat = the shared
+  `chartTitle()` (agg(measure) by X · colour: …)
+
+### Files
+`static/index.html` (+~170/−1), `tests/repoview.spec.ts` (+85)
+
+### Tests
+Playwright 70 → 73 (+3): histogram bins the `weight` column (bar count
+clamped 3…10, "rows" in the bin title, non-numeric X → empty state),
+bubble renders one area-scaled bubble per category (3 circles, radii
+> 20, bucket labels, aggregate tooltips) and the heat map switches from
+one value row (3 cells) to a 3×3 colour grid where the strongest cell
+reaches `fill-opacity:0.96`, empty pairings sit at `0.04`, and cross
+cells carry "bucket / colour" titles.
 
 ---
 
@@ -598,7 +643,8 @@ JS parse gate re-run clean; no backend change.
 | Four-way theme picker + themed chroma/plain-text CSS | `a507635` |
 | CSV column sorting from headers + control labels | `7d100c3` |
 | "Wiki Markdown" read-as menu item | `2e01bad` |
-| Chart series palette via theme vars + hover guideline | *(this commit)* |
+| Chart series palette via theme vars + hover guideline | `78d7266` |
+| Histogram / bubble / heat map chart types | *(this commit)* |
 
 ### Docs
 | Change | Commit |
@@ -631,7 +677,7 @@ JS parse gate re-run clean; no backend change.
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **70 / 70 passed** — 68 verified at `583f1fd`/`6dfd6ee`; +2 chart-palette/cursor tests at *(this commit)* |
+| Playwright (Chromium) | **73 / 73 passed** — 70 verified at `78d7266`; +3 chart-type tests at *(this commit)* |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (not in this branch yet)
