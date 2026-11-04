@@ -2,6 +2,7 @@
 
 ## [Unreleased]
 
+- [changed] `colors.csv` charts still re-staged as a more complex graph — a bar plot of summed weight per colour name, tinted per category — and the README title now carries the web UI's `Files` octicon (`docs/files-icon.svg`)
 - [added] Uninstall scripts: `uninstall.sh` removes the user-installed binary (and any pending self-update leftover) and RepoView's update state, `uninstall.ps1` does the same on Windows and also drops the install directory from the user PATH if it was added; both mirror the installer paths and the update-state layout, pinned together by a Go contract test
 
 - [changed] README screenshots re-filmed on the current build: the charts/theme-picker, Dark code view and Read-as wiki stills were retaken after collapse & fold and the Dark rose theme landed, a fourth still (`docs/screenshots/folds-rose.png`) shows every fold of `main.go` collapsed in Dark rose, and the demo GIF is kept at the top with a note marking it as recorded on an earlier build

@@ -39,7 +39,8 @@ hardening for the device handover.
 | 24 | `425d66d` | feat | styled fold switch + Dark rose theme | UI |
 | 25 | `fd98d04` | docs | re-point hash pins after branch identity rewrite | Housekeeping |
 | 26 | `5fb96c9` | docs | re-film README stills, outdated-GIF note, public-repo notes | Docs |
-| 27 | `pending` | feat | uninstall.sh and uninstall.ps1 | Installers |
+| 27 | `4800b3e` | feat | uninstall.sh and uninstall.ps1 | Installers |
+| 28 | `pending` | docs | complex charts still + Files icon beside the title | Docs |
 
 ---
 
@@ -959,7 +960,7 @@ app was not in.
 
 ---
 
-## 27. feat(install): uninstall.sh and uninstall.ps1
+## 27. `4800b3e` — feat(install): uninstall.sh and uninstall.ps1
 
 **Summary.** The installers had no reverse path — a user who installed
 via the release one-liners had to hand-hunt the binary, the install
@@ -992,6 +993,41 @@ state layout all stay in agreement, so the trio cannot silently drift.
   tree, and update.go's `"repoview", "state.json"` layout bound to the
   same locations
 - README: *Uninstall* subsection under Install; project-structure entry
+
+---
+
+## 28. docs: complex charts still + Files icon beside the title (pins §27)
+
+**Summary.** Two README touches folded into the clone the owner made
+after contributing LICENSE, CONTRIBUTING.md, the Why-blockquote and the
+`documentation.md` removal. First, the `colors.csv` chart still was
+re-staged to show a materially more complex graph: the colour names of
+`colors.csv` as 27 bars of summed weight, tinted per colour category —
+three palette slots on the plot where the old bubble still laid three
+dots. Second, the web UI's "Files" octicon (the sidebar-header glyph,
+`static/index.html` ~2396) was lifted into `docs/files-icon.svg` and
+placed beside the README title, so the front page and the app share one
+mark.
+
+### Changed
+- `docs/screenshots/charts-themes-nord.png` re-staged: type *Bar*, X
+  *name*, measure *weight*, agg *sum*, colour *category* — legend warm /
+  cool / neutral, gridlines, rotated tick labels, theme picker
+  satellite; DOM-asserted preconditions (27 bars, 3 legend entries,
+  fills as `var(--rv-chart-N)`)
+- `README.md`: icon in the title's `<h1 align="center">`, caption and
+  alt text for the new scene
+- `docs/files-icon.svg` — the octicon verbatim; `currentColor` baked to
+  `#59636e` because GitHub's markdown sanitizer strips `style` and the
+  glyph must read on light and dark front pages alike
+
+### Craft notes
+- Constraint discovered while staging: a colour column with ~30 distinct
+  values (`hex`) cannot be pictured here — `legendFor` caps the legend
+  at the ten palette slots, and since every hex is unique to its bucket,
+  all other buckets render with no eligible colour keys. Scene health
+  came from `category` (few values, shared across buckets). If a richer
+  fixture ever lands, the cap is the spot to revisit.
 
 ---
 

@@ -1,5 +1,5 @@
 <h1 align="center">
-   RepoView
+   <img src="docs/files-icon.svg" width="28" alt="Files icon"> RepoView
 </h1>
 
 A lightweight, single-binary local file viewer that replicates the GitHub UI for browsing files, rendering Markdown or plotting CSV data.
@@ -23,12 +23,14 @@ A lightweight, single-binary local file viewer that replicates the GitHub UI for
 
 ## Screenshots
 
-**CSV Charts, themed.** The Charts view on `colors.csv` — a Bubble of the
-categories drawn with the Nord palette, theme picker open. Series colours
-resolve through theme variables (`--rv-chart-1…10`), so the same chart
-recolours itself under Light / Dark / Nord / OpenCode Orng.
+**CSV Charts, themed.** The Charts view on `colors.csv` — summed weights
+per colour name, one bar each, tinted by the colour's category from the
+theme's chart palette (legend: warm / cool / neutral), theme picker
+open. Series colours resolve through theme variables
+(`--rv-chart-1…10`), so the same chart recolours itself under Light /
+Dark / Nord / OpenCode Orng.
 
-![CSV charts in the Nord theme with the theme picker open](docs/screenshots/charts-themes-nord.png)
+![Bar chart of colors.csv by colour name, tinted by category, in the Nord theme with the theme picker open](docs/screenshots/charts-themes-nord.png)
 
 **Code view, Dark.** Reading the viewer's own `main.go` in the Dark theme:
 GitHub-style tree, breadcrumb and Chroma highlighting rendered with theme
