@@ -33,7 +33,8 @@ hardening for the device handover.
 | 18 | `4df1646` | feat | histogram, bubble, heat map chart types | Charts 7c |
 | 19 | `83afeea` | docs | README screenshots (charts/themes, code view, read-as) | Docs |
 | 20 | `15d8c0e` | fix | theme menu clears the sidebar on short paths | UI |
-| 21 | *(this commit)* | fix | padded line-number gutters across all numbered views | UI |
+| 21 | `e2f78ef` | fix | padded line-number gutters across all numbered views | UI |
+| 22 | *(this commit)* | docs | documentation.md + custom-themes guide | Docs |
 
 ---
 
@@ -704,7 +705,7 @@ re-run green.
 
 ---
 
-## 21. *(this commit)* — fix(ui): padded line-number gutters across all numbered views
+## 21. `e2f78ef` — fix(ui): padded line-number gutters across all numbered views
 
 **Summary.** The owner asked to add right padding to the numbered lines
 inside code files. Where the numbers come from, verified by a rendered-
@@ -736,7 +737,8 @@ decision across views. `text-align: right` and `user-select: none`
 finish it (numbers stay out of copied code).
 
 ### Files
-`static/index.html` (+~21/−~2), `tests/repoview.spec.ts` (+62/−0)
+`static/index.html` (+17/−1), `tests/repoview.spec.ts` (+59/−0),
+`CHANGELOG.md` (+1/−0), `CHANGES.md` (+47/−1), `TODO.md` (+4/−3)
 
 ### Tests
 Playwright **+4 (75 → 79)** — new `Line-number gutter` describe: code
@@ -745,6 +747,35 @@ views (`.py`/`.json`/`.go`/`.yaml` via the sidebar) assert computed
 markdown fences assert no numbered lines exist (pinning the scoping
 decision); the reading view (numbers toggled on) asserts its existing
 1.25em margin. Full gate battery re-run green.
+
+---
+
+## 22. *(this commit)* — docs: documentation.md with the theming + custom-themes guide
+
+**Summary.** New top-level `documentation.md`, linked from the README,
+carrying the theming reference:
+
+- The mechanism table — four 44-variable `[data-theme]` blocks, the boot
+  IIFE (`localStorage('rv-theme')` validated against the allowlist,
+  `prefers-color-scheme` fallback, attribute set before first paint),
+  the picker (`THEMES` + swatch chips + Mermaid remap), class-only chroma
+  output at `main.go:710–712`, and chart fills written as
+  `var(--rv-chart-1…10)`
+- **Custom themes** — the 44-variable contract grouped (25 page-shell +
+  9 chroma tokens + 10 chart series, all four built-in blocks verified
+  structurally identical), a complete worked `[data-theme="dracula"]`
+  example block, the two registration spots (boot allowlist list + the
+  `THEMES` picker array with the `swatch: [background, accent]` format),
+  a verification checklist, and structural notes: the source-order
+  gotcha for same-specificity media overrides (the `15d8c0e` lesson),
+  Mermaid's binary light/dark mapping, and the fact that custom ids don't
+  participate in `prefers-color-scheme`
+
+### Files
+`documentation.md` (new, ~130 lines), `README.md` (+1), `CHANGES.md` (+24/−0)
+
+### Tests
+Docs-only commit, no behavior change; gates green (79/79).
 
 ---
 
@@ -777,7 +808,8 @@ decision); the reading view (numbers toggled on) asserts its existing
 | Histogram / bubble / heat map chart types | `4df1646` |
 | README screenshots (charts/themes, code, read-as) | `83afeea` |
 | Theme menu clears the sidebar on short paths | `15d8c0e` |
-| Padded line-number gutters across numbered views | *(this commit)* |
+| Padded line-number gutters across numbered views | `e2f78ef` |
+| documentation.md + custom-themes guide | *(this commit)* |
 
 ### Docs
 | Change | Commit |
@@ -810,7 +842,7 @@ decision); the reading view (numbers toggled on) asserts its existing
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **79 / 79 passed** — 75 at `15d8c0e`; +4 gutter tests at *(this commit)* |
+| Playwright (Chromium) | **79 / 79 passed** — 75 at `15d8c0e`; +4 gutter tests at `e2f78ef` |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (branch follow-up)

@@ -33,6 +33,7 @@ I noticed my marketing team, when working with Claude Code and lots of markdown 
 
 - **GitHub-style UI** — familiar layout with resizable sidebar, breadcrumb navigation, and file tree
 - **Markdown rendering** — GitHub-Flavored Markdown via goldmark (tables, task lists, code blocks)
+- **Four-way theming** — Light / Dark / Nord / OpenCode Orng with theme-aware code tokens and chart palettes; add your own theme per [documentation.md](documentation.md#custom-themes)
 - **Read file as** — re-render any text file as plain text, Markdown, Wiki Markdown (Obsidian wiki links expand even outside a vault), a CSV table, or XML from a dropdown in the file header; plain `.txt` files open in a clean reading view with soft-wrap and line-number toggles
 - **CSV filter toolbar** — per-column operators (contains, equals, regex, greater, less, empty), match all or any combination, removable filter chips (click the chip itself) and a live "Showing X of Y rows" count
 - **CSV column sorting** — click a table header to cycle ascending → descending → off, numeric-aware (weights sort as numbers), `aria-sort` state, and every filter/sort/chart control carries a descriptive label + tooltip

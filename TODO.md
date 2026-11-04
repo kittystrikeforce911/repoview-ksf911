@@ -37,7 +37,7 @@
   | *(this docs commit)* | docs: handover notes and theme entry |
 - Last verified state: `go build` ✅ · `go vet` ✅ · `gofmt` clean ✅ ·
   `go test ./...` ok ✅ · **Playwright 79/79 passed** ✅ (through CHANGES.md
-  §21)
+  §22)
 - Full change record: see `CHANGES.md` (per-commit detail + cross-index).
   Keep `CHANGES.md` updated with each new commit; `CHANGELOG.md` stays the
   per-commit `[Unreleased]` entry log.
