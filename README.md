@@ -97,6 +97,23 @@ repoview update --check   # check for updates without installing
 
 The update command downloads the latest release from GitHub, shows release notes, and replaces the current binary.
 
+### Access from other devices
+
+Folder viewing is meant to live on your own network. Phones, tablets and
+other machines on the same LAN can browse the repository served by any
+machine running RepoView with `--host 0.0.0.0`:
+
+```bash
+repoview --host 0.0.0.0              # reachable by every device on the LAN
+```
+
+Then open `http://<server-ip>:7777` on the other device. The whole app
+(browser UI, `/api/*` reads and the live-reload WebSocket) uses the address
+you connect to, so no extra setup is needed. The WebSocket upgrade is
+accepted from the same host you are browsing through — including a LAN IP —
+and refused for pages served from foreign hosts; non-browser clients that
+send no `Origin` header are unaffected.
+
 ## API
 
 | Endpoint | Description |

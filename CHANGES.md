@@ -26,7 +26,8 @@ hardening for the device handover.
 | 11 | `d8c7919` | ci | Playwright webServer runs without mise; 60 s boot timeout | Tooling |
 | 12 | `f6cb0ee` | docs | handover notes and theme entry | Handover |
 | 13 | `7d100c3` | feat | CSV column sort from table headers + descriptive control labels | CSV sort/labels |
-| 14 | *(this commit)* | feat | "Wiki Markdown" in Read file as (`as=wiki`) | Read-as wiki |
+| 14 | `2e01bad` | feat | "Wiki Markdown" in Read file as (`as=wiki`) | Read-as wiki |
+| 15 | *(this commit)* | feat | cross-device WebSocket origin tests + README access-guide | Interop |
 
 ---
 
@@ -432,7 +433,7 @@ cell; now iterates `row.cells`).
 
 ---
 
-## 14. *(this commit)* — feat(view): "Wiki Markdown" in Read file as (`as=wiki`)
+## 14. `2e01bad` — feat(view): "Wiki Markdown" in Read file as (`as=wiki`)
 
 **Summary.** The "Read file as" menu gains a fourth renderer: any inline
 text file can be re-read as Obsidian-style wiki markdown. Previously wiki
@@ -473,6 +474,34 @@ view with the menu item marked preferred.
 
 ---
 
+## 15. *(this commit)* — feat(api): cross-device WebSocket origin tests + README access guide
+
+**Summary.** The WebSocket upgrade is already usable across devices
+(`checkSameOrigin` requires the Origin host to equal the request host, so a
+browser at `http://192.168.1.42:7777` reaches a server bound with
+`--host 0.0.0.0`). This stage documents the flow and locks the behaviour in
+with device-shaped regression cases, so LAN-interop cannot regress silently.
+
+### Added
+- `TestCheckSameOrigin` cases: LAN IPv4 pairing (`192.168.1.42` ↔
+  `192.168.1.42:7777`) including an https-origin variant, another subnet
+  (`10.0.0.5`), IPv6 loopback pairing (`[::1]:7777`), and the negative
+  triples (neighbouring IP, foreign host, wrong port)
+- README *Access from other devices* section under Usage: `--host 0.0.0.0`,
+  open `http://<server-ip>:7777`, note that the UI + API + live-reload all
+  use the connecting address and that non-browser clients (no Origin
+  header) are unaffected
+
+### Files
+`main_test.go` (+12), `README.md` (+15)
+
+### Tests
+Backend only: +8 acceptance cases (LAN/subnet/IPv6 pairings and scheme
+insensitivity) and +3 rejections (neighbouring IP, foreign host, wrong
+port); `go test ./...` green; Playwright re-run unchanged (68/68).
+
+---
+
 ## Cross-index by area
 
 ### Backend — `main.go` / `main_test.go`
@@ -506,6 +535,7 @@ view with the menu item marked preferred.
 | Feature list: read-as, filters, charts, XML; `CHANGES.md` created | `1be8d7c` |
 | README feature bullet for theming | `a507635` |
 | Debian dev-env setup, `TODO.md` handover notes, this file brought current | `f6cb0ee` |
+| README "Access from other devices" cross-device guide | *(this commit)* |
 | `CHANGELOG.md` `[Unreleased]` entries per commit | all feature/fix commits |
 
 ### Tests & fixtures

@@ -1840,6 +1840,18 @@ func TestCheckSameOrigin(t *testing.T) {
 		{"wrong host", "http://evil.example", "localhost:7777", false},
 		{"wrong port", "http://localhost:9999", "localhost:7777", false},
 		{"malformed origin", "://", "localhost:7777", false},
+
+		// Cross-device access: a browser on another machine reaches the
+		// server through its LAN address (served with --host 0.0.0.0),
+		// so Origin host must equal the request Host byte-for-byte —
+		// any matching IP/pair passes regardless of scheme.
+		{"LAN IPv4 pairing (same device client)", "http://192.168.1.42:7777", "192.168.1.42:7777", true},
+		{"LAN IPv4 pairing, https origin", "https://192.168.1.42:7777", "192.168.1.42:7777", true},
+		{"other LAN subnet pairing", "http://10.0.0.5:7777", "10.0.0.5:7777", true},
+		{"IPv6 loopback pairing", "http://[::1]:7777", "[::1]:7777", true},
+		{"device passes but wrong path host", "http://192.168.1.42:7777", "192.168.1.43:7777", false},
+		{"foreign host while serving on 0.0.0.0", "http://evil.example:7777", "192.168.1.42:7777", false},
+		{"LAN client with different port", "http://192.168.1.42:8000", "192.168.1.42:7777", false},
 	}
 	for _, c := range cases {
 		req := httptest.NewRequest("GET", "/ws", nil)

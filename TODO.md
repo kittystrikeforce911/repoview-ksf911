@@ -49,14 +49,9 @@
 2. ~~**Wiki Markdown in "Read file as"**~~ — **SHIPPED as CHANGES.md §14**
    (`as=wiki` forces `preprocessWikiLinks` + `WithUnsafe` even outside an
    `.obsidian` vault; menu item added; Go + Playwright suites extended).
-3. **Cross-device access on `--host 0.0.0.0`**
-   - Status: server-side `checkSameOrigin` compares `Origin` host to the
-     request `Host` exactly, so a browser on another device reaching the
-     server via its LAN IP already passes; only truly foreign hosts are
-     rejected. Frontend uses relative URLs + `location.host` for the WS.
-   - TODO: extend `TestCheckSameOrigin` with device cases (IPv4 `192.168.x.x:port`
-     pairing pass, differing host fail, scheme-insensitive pass); README: WS
-     row text + a short "Access from other devices" section.
+3. ~~**Cross-device access on `--host 0.0.0.0`**~~ — **SHIPPED as CHANGES.md
+   §15** (`TestCheckSameOrigin` LAN/IPv6/subnet cases; README
+   *Access from other devices* section).
 4. **README: MIT license summary table (from choosealicense.com)**
    - Permissions: commercial use, modification, distribution, private use;
      Limitations: liability, warranty; Conditions: license and copyright
