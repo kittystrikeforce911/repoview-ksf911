@@ -1224,3 +1224,47 @@ test.describe("Wiki links", () => {
     expect(href).toBe("/hello.md#code-block");
   });
 });
+
+test.describe("Theme menu", () => {
+  // The menu drops from the breadcrumb bar; on short paths it used to be
+  // painted under the sidebar column (bar sticky z-index 5 vs sidebar tree).
+  test("opens clear of the sidebar on short paths", async ({ page }) => {
+    await page.goto("/data.csv");
+    await page.locator("#theme-toggle").click();
+    await page.locator("#theme-menu .theme-menu-item").first().waitFor();
+
+    const probe = await page.evaluate(() => {
+      const r = (s) => document.querySelector(s).getBoundingClientRect();
+      const menu = r("#theme-menu");
+      const sidebar = r("#sidebar");
+      const bar = r("#breadcrumb-bar");
+      const hit = document.elementFromPoint(menu.left + 6, menu.top + menu.height / 2);
+      return {
+        clears: menu.left >= sidebar.right - 1,
+        pinnedRight: Math.abs(bar.right - menu.right) < 48,
+        clickable: !!hit && !!hit.closest("#theme-menu"),
+      };
+    });
+    expect(probe.clears).toBe(true);
+    expect(probe.pinnedRight).toBe(true);
+    expect(probe.clickable).toBe(true);
+  });
+
+  test("stays clickable above a very wide sidebar", async ({ page }) => {
+    await page.goto("/data.csv");
+    await page.evaluate(() => {
+      const sidebar = document.querySelector("#sidebar");
+      sidebar.style.maxWidth = "none";
+      sidebar.style.width = "1100px";
+    });
+    await page.locator("#theme-toggle").click();
+    await page.locator("#theme-menu .theme-menu-item").first().waitFor();
+
+    const clickable = await page.evaluate(() => {
+      const menu = document.querySelector("#theme-menu").getBoundingClientRect();
+      const hit = document.elementFromPoint(menu.left + 6, menu.top + menu.height / 2);
+      return !!hit && !!hit.closest("#theme-menu");
+    });
+    expect(clickable).toBe(true);
+  });
+});

@@ -32,6 +32,7 @@ hardening for the device handover.
 | 17 | `78d7266` | feat | theme-aware chart palettes (`--rv-chart-N`) + hover guideline | Charts 7b |
 | 18 | `4df1646` | feat | histogram, bubble, heat map chart types | Charts 7c |
 | 19 | `83afeea` | docs | README screenshots (charts/themes, code view, read-as) | Docs |
+| 20 | *(this commit)* | fix | theme menu clears the sidebar on short paths | UI |
 
 ---
 
@@ -651,6 +652,56 @@ Docs-only commit; gates re-run green (73/73 Playwright).
 
 ---
 
+## 20. *(this commit)* — fix(ui): theme menu clears the sidebar on short paths
+
+**Summary.** Owner-report: on short paths the open theme menu is
+blocked by the sidebar. Reproduced by measurement on `/main.go` at
+1440px: the menu spans x 208–428 while the sidebar ends at x 250, so its
+left ~42px (rounded corner, shadow, the left strip of every row) paints
+under the sidebar tree — confirmed by both `elementFromPoint` hit-tests
+and a screenshot. Long paths only looked fine because enough crumb text
+pushed the menu clear of the sidebar column.
+
+Two causes, both fixed in `static/index.html`:
+
+1. **Position — the wrap never pinned right.** `margin-left: auto` sat
+   on `#theme-toggle` *inside* the content-sized `#theme-menu-wrap`
+   (a no-op), so the whole wrap trailed the breadcrumbs (wrapRight 428
+   on `/main.go` vs 521 on `/testdata/wiki-notes.txt`, barRight 1440 for
+   both). The auto margin now lives on `#theme-menu-wrap`: the toggle +
+   menu hug the bar's right edge at every path length — the original
+   intent of the toggle rule.
+2. **Stacking — the menu was trapped in the sticky bar's subtree.**
+   Its `z-index: 90` was scoped inside `#breadcrumb-bar`'s sticky
+   `z-index: 5` context. Variant testing (seven injected permutations,
+   all hit-tested) showed the deeper truth: even explicit root-level
+   ordering (`#main` z-1, `#sidebar` z-0, bar will-change, scroller
+   demotion, wrap translateZ) still lost to the sidebar's composited
+   tree on overlap — sticky subtrees inside this flex layout rank under
+   it regardless of inner z, while plain main content wins. So the menu
+   leaves the subtree entirely: `position: fixed`, anchored
+   `top: 42px` (the bar's constant 36px height + 6px gap) and
+   `right: 24px` (the bar's padding, so the menu's right edge aligns
+   with the toggle; `right: 12px` in the ≤768px block — placed *after*
+   the base `#theme-menu` rule, since the theme section sits below the
+   mobile block in source order and an equal-specificity override that
+   precedes the base gets ignored).
+
+### Files
+`static/index.html` (+~35/−~5), `tests/repoview.spec.ts` (+57/−0)
+
+### Tests
+Playwright **+2 (73 → 75)** — new `Theme menu` describe: "opens clear of
+the sidebar on short paths" (menu-left ≥ sidebar-right, menu pinned to
+the bar edge ±48px, and `elementFromPoint` at the menu's left edge
+resolves inside `#theme-menu`) and "stays clickable above a very wide
+sidebar" (inline 1100px sidebar at a 1280px viewport — overlaps ~64px of
+menu and must still win the hit). Both fail red pre-fix. A mobile probe
+at 420px shows menu-right = toggle-right = 408px. Full gate battery
+re-run green.
+
+---
+
 ## Cross-index by area
 
 ### Backend — `main.go` / `main_test.go`
@@ -679,6 +730,7 @@ Docs-only commit; gates re-run green (73/73 Playwright).
 | Chart series palette via theme vars + hover guideline | `78d7266` |
 | Histogram / bubble / heat map chart types | `4df1646` |
 | README screenshots (charts/themes, code, read-as) | `83afeea` |
+| Theme menu clears the sidebar on short paths | *(this commit)* |
 
 ### Docs
 | Change | Commit |
@@ -711,7 +763,7 @@ Docs-only commit; gates re-run green (73/73 Playwright).
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **73 / 73 passed** — final: 70 verified at `78d7266`; +3 chart-type tests at `4df1646` |
+| Playwright (Chromium) | **75 / 75 passed** — 73 at `83afeea`; +2 theme-menu regression tests at *(this commit)* |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (branch follow-up)

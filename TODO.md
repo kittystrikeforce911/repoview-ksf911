@@ -4,20 +4,20 @@
 > found bugs, environment notes). Last updated: 2026-11-04 (device handover
 > to a minimal Debian install).
 
-## Branch state (as of stage 8, 2026-11-04)
+## Branch state (as of the theme-menu fix, 2026-11-04)
 
 - Branch `feat/viewer-upgrade`, based on `master` (v0.17.0)
-- **20 commits, ALL UNPUSHED** — roadmap stages 1–8 (§13–§19 of
-  CHANGES.md) are complete: CSV sort + labels, wiki read-as, cross-device
+- **22 commits, ALL UNPUSHED** — stages 1–8 (CHANGES.md §13–§19) plus the
+  theme-menu fix (§20): CSV sort + labels, wiki read-as, cross-device
   access, MIT table, chart palettes + hover guideline (7b), histogram/
-  bubble/heat map (7c), README screenshots (stage 8, `83afeea`) and the
-  hash-pin housekeeping (`825ca86`). Stage 8's PR is drafted, not opened:
-  `gh` is not installed and pushing needs credentials, so see the
-  owner-facing draft at `~/Desktop/pr-feat-viewer-upgrade.md` — do not
-  push without the owner's go-ahead. Verify state with:
+  bubble/heat map (7c), README screenshots (stage 8, `83afeea`), hash
+  pinning (`825ca86`), TODO refresh (`190d0a3`). Stage 8's PR is drafted,
+  not opened: `gh` is not installed and pushing needs credentials, so see
+  the owner-facing draft at `~/Desktop/pr-feat-viewer-upgrade.md` — do
+  not push without the owner's go-ahead. Verify state with:
   ```bash
-  git log --oneline -20     # history intact after device switches
-  git rev-list --count origin/master..HEAD   # expect 20
+  git log --oneline -22     # history intact after device switches
+  git rev-list --count origin/master..HEAD   # expect 22
   ```
 - Commit list (newest last):
   | Commit | Title |
@@ -35,8 +35,8 @@
   | `d8c7919` | ci(tests): Playwright webServer runs without mise; 60 s boot timeout |
   | *(this docs commit)* | docs: handover notes and theme entry |
 - Last verified state: `go build` ✅ · `go vet` ✅ · `gofmt` clean ✅ ·
-  `go test ./...` ok ✅ · **Playwright 73/73 passed** ✅ (through CHANGES.md
-  §19)
+  `go test ./...` ok ✅ · **Playwright 75/75 passed** ✅ (through CHANGES.md
+  §20)
 - Full change record: see `CHANGES.md` (per-commit detail + cross-index).
   Keep `CHANGES.md` updated with each new commit; `CHANGELOG.md` stays the
   per-commit `[Unreleased]` entry log.
@@ -77,6 +77,14 @@
 
 ## BUGS / open questions
 
+- **"Theme menu blocked by the sidebar on short paths" (reported 2026-11-04)** —
+  RESOLVED as CHANGES.md §20 (*this commit*): `margin-left: auto` moved
+  from `#theme-toggle` to `#theme-menu-wrap` so the toggle + menu pin to
+  the bar's right edge, and the menu renders `position: fixed` anchored
+  under the constant-height bar — it escapes the sticky-bar subtree that
+  Chromium lets the sidebar out-paint (measured pre-fix: menu x 208–428
+  vs sidebar ≤250 on `/main.go`; hit-tests plus a screenshot). The two
+  new "Theme menu" Playwright tests fail red pre-fix (73 → 75).
 - **"Dark UI renders .txt as white background" (reported by user)** —
   NOT reproducible on this build with any flow (``/example.txt``,
   `?as=txt`, sidebar click after dark toggle, `UPPERCASE.TXT`, dark OS
