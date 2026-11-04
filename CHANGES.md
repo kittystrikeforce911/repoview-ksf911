@@ -34,7 +34,8 @@ hardening for the device handover.
 | 19 | `83afeea` | docs | README screenshots (charts/themes, code view, read-as) | Docs |
 | 20 | `15d8c0e` | fix | theme menu clears the sidebar on short paths | UI |
 | 21 | `e2f78ef` | fix | padded line-number gutters across all numbered views | UI |
-| 22 | *(this commit)* | docs | documentation.md + custom-themes guide | Docs |
+| 22 | `a7f6a21` | docs | documentation.md + custom-themes guide | Docs |
+| 23 | *(this commit)* | feat | collapse & fold for hierarchical views | UI |
 
 ---
 
@@ -750,7 +751,7 @@ decision); the reading view (numbers toggled on) asserts its existing
 
 ---
 
-## 22. *(this commit)* — docs: documentation.md with the theming + custom-themes guide
+## 22. `a7f6a21` — docs: documentation.md with the theming + custom-themes guide
 
 **Summary.** New top-level `documentation.md`, linked from the README,
 carrying the theming reference:
@@ -772,10 +773,71 @@ carrying the theming reference:
   participate in `prefers-color-scheme`
 
 ### Files
-`documentation.md` (new, ~130 lines), `README.md` (+1), `CHANGES.md` (+24/−0)
+`documentation.md` (new, +132), `CHANGES.md` (+37/−5), `README.md` (+1),
+`CHANGELOG.md` (+1), `TODO.md` (+1/−1)
 
 ### Tests
 Docs-only commit, no behavior change; gates green (79/79).
+
+---
+
+## 23. *(this commit)* — feat(ui): collapse & fold for hierarchical views
+
+**Summary.** The owner asked for a simple collapse switch for
+hierarchical file types — python functions, JSON, XML, markdown titles,
+etc. A sweep found markdown *titles* already fully collapsible
+(`wrapCollapsibleSections` + per-file persistence at
+`getCollapseStorageKey`), so the new work is the two missing surfaces —
+chroma code views and the XML Tree tab — sharing one visual language
+(carets + a header Collapse/Expand switch) and one policy (session-only
+state; markdown keeps its per-file persistence):
+
+- **Code views (indent-based folding).** Chroma's flat output needs no
+  wrapper element: `applyCodeFolds` reads each line's `.cl` leading
+  indent (tabs count 4) and marks a line foldable when a deeper line
+  follows — the hidden range runs to the last line deeper than the
+  start (blank lines are neutral, `Infinity`), so a fold covers a
+  function body, JSON nesting, YAML blocks, gofmt'd Go and
+  uniformly-indented HTML. For Python functions it's exactly
+  PEP-8-reliable. Unfolding is a class toggle on the following line
+  spans (`.folded → display:none`), with an `⋯` ellipsis marker on the
+  collapsed start line. The caret lives in the gutter: every line gets
+  a one-glyph slot (▾ on fold starts, a blank elsewhere) so the code
+  column stays aligned across foldable and non-foldable lines;
+  `.ln` stays `user-select:none`, so slots never leak into copies. The
+  gutter caret toggles a single fold; a `Collapse`/`Expand` switch in
+  `.file-header-actions` (the file header bar) collapses/opens all
+  ranges at once and appears **only when foldable ranges exist** —
+  plain-text reading views and the flush-left `sample.html` Code tab
+  correctly get none.
+- **Coverage.** Wired into the generic code-file branch (`.py`, `.go`,
+  `.json`, `.yaml`…), the HTML file Code tab (its chroma output rides
+  `rawContent`) and the XML viewer's Code tab — plus the markdown Code
+  tab naturally goes without (source has no indent hierarchy; md
+  *titles* are the existing collapsible sections).
+- **XML Tree tab.** `nodeHTML` emits a `▾` caret on every node with
+  children; a delegated click on `viewWrap` (survives filter re-renders)
+  toggles `collapsed` on the node, hiding its `.xml-children` UL and
+  rotating the caret with the same `⋯` marker. The same header switch
+  collapse-alls / expands-all the tree — one button drives both tree
+  and Code-tab modes, shown only when the current view has fold targets
+  (never on Table).
+
+### Files
+`static/index.html` (+287/−1), `tests/repoview.spec.ts` (+147/−0),
+`CHANGES.md` (+68/−5), `TODO.md` (+5/−4), `CHANGELOG.md` (+1/−0)
+
+### Tests
+Playwright **+4 (79 → 83)** — new `Collapse & fold` describe: python
+folds via the gutter caret assert 2 ranges on `sample.py`, 2 hidden
+lines after folding, 3 visible lines remain, and the `⋯` marker;
+the JSON fold switch asserts collapse-all → `Expand` label → expand-all
+round-trip; XML tree carets assert a collapsed node hides its child UL
+(`display:none`) and un-collapses; the XML switch + Code tab test
+collapse-alls all 7 foldable nodes, then the same switch folds the
+chroma source on the Code tab. A flush-left HTML fixture is a negative
+control in the probe stage (0 foldables, no switch). Full gate battery
+re-run green (83/83; Go tests, vet, gofmt, JS parse).
 
 ---
 
@@ -809,7 +871,8 @@ Docs-only commit, no behavior change; gates green (79/79).
 | README screenshots (charts/themes, code, read-as) | `83afeea` |
 | Theme menu clears the sidebar on short paths | `15d8c0e` |
 | Padded line-number gutters across numbered views | `e2f78ef` |
-| documentation.md + custom-themes guide | *(this commit)* |
+| documentation.md + custom-themes guide | `a7f6a21` |
+| Collapse & fold for hierarchical views | *(this commit)* |
 
 ### Docs
 | Change | Commit |
@@ -842,7 +905,7 @@ Docs-only commit, no behavior change; gates green (79/79).
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **79 / 79 passed** — 75 at `15d8c0e`; +4 gutter tests at `e2f78ef` |
+| Playwright (Chromium) | **83 / 83 passed** — 79 at `e2f78ef`; +4 fold tests at *(this commit)* |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (branch follow-up)

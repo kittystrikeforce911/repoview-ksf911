@@ -1012,6 +1012,37 @@
                 text-align: right;
                 user-select: none;
             }
+            /* Folds: hierarchical collapse for chroma code views. Fold
+               starts carry a caret in the number gutter (click the gutter
+               to toggle); folded lines are hidden outright and the fold
+               start gets an ellipsis marker. Folds are session-only —
+               markdown's collapsible sections keep their per-file
+               persistence. */
+            .source-code .line.foldable .ln {
+                cursor: pointer;
+            }
+            .source-code .line.foldable:hover .ln {
+                color: var(--rv-link);
+            }
+            .source-code .fold-caret {
+                color: var(--rv-text-tertiary);
+                display: inline-block;
+                transition: transform 0.12s ease;
+            }
+            .source-code .line.foldable:hover .fold-caret,
+            .source-code .line.collapsed:hover .fold-caret {
+                color: var(--rv-link);
+            }
+            .source-code .line.collapsed .fold-caret {
+                transform: rotate(-90deg);
+            }
+            .source-code .line.collapsed .cl::after {
+                content: " ⋯";
+                color: var(--rv-text-tertiary);
+            }
+            .source-code .line.folded {
+                display: none;
+            }
             .source-code .k,
             .source-code .kc,
             .source-code .kd,
@@ -1322,6 +1353,30 @@
             }
             .xml-tree-empty {
                 opacity: 0.8;
+            }
+            /* XML tree folding: nodes with children carry a caret; click
+               toggles the child listing. Like code folds, session-only. */
+            .xml-tree .xml-fold {
+                color: var(--rv-text-tertiary);
+                cursor: pointer;
+                user-select: none;
+                display: inline-block;
+                margin-right: 0.35em;
+                transition: transform 0.12s ease;
+            }
+            .xml-tree .xml-node-line:hover .xml-fold,
+            .xml-tree .xml-node.collapsed .xml-node-line:hover .xml-fold {
+                color: var(--rv-link);
+            }
+            .xml-node.collapsed > .xml-children {
+                display: none;
+            }
+            .xml-node.collapsed > .xml-node-line > .xml-fold {
+                transform: rotate(-90deg);
+            }
+            .xml-node.collapsed > .xml-node-line::after {
+                content: " ⋯";
+                color: var(--rv-text-tertiary);
             }
             .csv-table {
                 border: 1px solid var(--rv-border);
@@ -3436,6 +3491,140 @@
                 saveCollapseState(filePath, []);
             }
 
+            /* ── Code & XML folding ───────────────────────────────────── */
+
+            // Indent-based fold detection for chroma source-code views:
+            // a line can fold its successors when the following line has a
+            // deeper (or any) level of indentation. The hidden range runs
+            // past blank lines too, so the caret stops at the next line of
+            // equal-or-shallower indentation.
+            function applyCodeFolds(container) {
+                var pre = container.querySelector(".source-code");
+                if (!pre) return null;
+                var lines = Array.prototype.slice.call(pre.querySelectorAll(".line"));
+                if (lines.length < 2) return null;
+                // Indent per line; blank lines get Infinity (never fold,
+                // never terminate a range).
+                var indents = lines.map(function (line) {
+                    var cl = line.querySelector(".cl");
+                    var text = cl ? cl.textContent : "";
+                    if (!text.trim()) return Infinity;
+                    var m = text.match(/^( +)/);
+                    if (m) return m[1].length;
+                    m = text.match(/^(\t+)/);
+                    if (m) return m[1].length * 4;
+                    return 0;
+                });
+                var ranges = [];
+                for (var i = 0; i < lines.length - 1; i++) {
+                    var depth = indents[i];
+                    if (depth === Infinity) continue;
+                    var j = i + 1;
+                    var lastContent = -1;
+                    while (
+                        j < lines.length &&
+                        (indents[j] === Infinity || indents[j] > depth)
+                    ) {
+                        if (indents[j] !== Infinity) lastContent = j;
+                        j++;
+                    }
+                    if (lastContent > i) {
+                        ranges.push({
+                            start: lines[i],
+                            from: i + 1,
+                            to: j - 1,
+                        });
+                    }
+                }
+                ranges.forEach(function (r) {
+                    r.start.classList.add("foldable");
+                });
+                if (ranges.length) {
+                    // Give every line a one-glyph caret slot in the gutter
+                    // (▾ on fold starts, a blank space elsewhere) so the
+                    // code column stays aligned across foldable and
+                    // non-foldable lines. The spans are user-select:none
+                    // via the .ln gutter rule, so they never leak into
+                    // copies.
+                    lines.forEach(function (line) {
+                        var ln = line.querySelector(".ln");
+                        if (!ln) return;
+                        var foldable = line.classList.contains("foldable");
+                        var caret = document.createElement("span");
+                        caret.className = foldable ? "fold-caret" : "fold-slot";
+                        caret.textContent = foldable ? "▾" : " ";
+                        ln.insertBefore(caret, ln.firstChild);
+                    });
+                }
+                ranges.forEach(function (r) {
+                    var ln = r.start.querySelector(".ln");
+                    r.setCollapsed = function (collapsed) {
+                        r.start.classList.toggle("collapsed", collapsed);
+                        for (var k = r.from; k <= r.to; k++) {
+                            lines[k].classList.toggle("folded", collapsed);
+                        }
+                        return !r.start.classList.contains("collapsed");
+                    };
+                    if (ln) {
+                        ln.title =
+                            "Fold " +
+                            (r.to - r.from + 1) +
+                            " line" +
+                            (r.to - r.from ? "s" : "");
+                        ln.onclick = function () {
+                            var collapsed = !r.start.classList.contains(
+                                "collapsed",
+                            );
+                            r.setCollapsed(collapsed);
+                            refreshFoldSwitch();
+                        };
+                    }
+                });
+                return ranges.length ? { ranges: ranges, lines: lines } : null;
+            }
+
+            // Code views + the XML Code tab: mounts (or removes) the
+            // Collapse/Expand switch in the file header actions.
+            function mountCodeFoldSwitch(area) {
+                var actions = document.querySelector(
+                    "#file-header-bar .file-header-actions",
+                );
+                if (!actions) return null;
+                var oldBtn = actions.querySelector(".fold-switch");
+                if (oldBtn) oldBtn.remove();
+                var folds = applyCodeFolds(area);
+                if (!folds || folds.ranges.length === 0) return null;
+                var btn = document.createElement("button");
+                btn.className = "fold-switch";
+                function refresh() {
+                    var allCollapsed = folds.ranges.every(function (r) {
+                        return r.start.classList.contains("collapsed");
+                    });
+                    btn.textContent = allCollapsed ? "Expand" : "Collapse";
+                    btn.classList.toggle("active", allCollapsed);
+                }
+                btn._refreshFoldLabel = refresh;
+                btn.onclick = function () {
+                    var allCollapsed = folds.ranges.every(function (r) {
+                        return r.start.classList.contains("collapsed");
+                    });
+                    folds.ranges.forEach(function (r) {
+                        r.setCollapsed(!allCollapsed);
+                    });
+                    refresh();
+                };
+                refresh();
+                actions.appendChild(btn);
+                return folds;
+            }
+
+            function refreshFoldSwitch() {
+                var btn = document.querySelector(
+                    "#file-header-bar .fold-switch",
+                );
+                if (btn && btn._refreshFoldLabel) btn._refreshFoldLabel();
+            }
+
             function renderMermaidDiagrams(container) {
                 var codeBlocks = container.querySelectorAll('code.language-mermaid');
                 codeBlocks.forEach(function(code) {
@@ -3874,18 +4063,22 @@
                     toggle.appendChild(btnCode);
 
                     showFileHeaderBar(toggle, null);
+                    // Fold switch for the Code tab (no-op on Preview)
+                    mountCodeFoldSwitch(area);
 
                     btnPreview.onclick = function () {
                         area.innerHTML = previewEl;
                         btnPreview.className = "active";
                         btnCode.className = "";
                         setViewParam(null);
+                        mountCodeFoldSwitch(area);
                     };
                     btnCode.onclick = function () {
                         area.innerHTML = codeHTML;
                         btnCode.className = "active";
                         btnPreview.className = "";
                         setViewParam("code");
+                        mountCodeFoldSwitch(area);
                     };
                 } else if (data.isMarkdown || data.isSVG) {
                     var previewHTML, codeHTML;
@@ -4907,6 +5100,7 @@
                     } else {
                         // Show file header bar without toggle for plain files
                         showFileHeaderBar(null, null);
+                        mountCodeFoldSwitch(area);
                     }
                 }
 
@@ -5422,7 +5616,11 @@
                         return false;
                     }
                     function nodeHTML(el) {
+                        var kids = el.children;
                         var html = '<li class="xml-node"><div class="xml-node-line">';
+                        if (kids.length > 0) {
+                            html += '<span class="xml-fold" title="Toggle children">▾</span>';
+                        }
                         for (var i = 0; i < el.attributes.length; i++) {
                             var a = el.attributes[i];
                             html += ' <span class="xml-attr">' + esc(a.name) + '="' + esc(a.value) + '"</span>';
@@ -5438,7 +5636,6 @@
                             html += '<span class="xml-text">' + esc(directText) + "</span>";
                         }
                         html += "</div>";
-                        var kids = el.children;
                         if (kids.length > 0 && visible(el)) {
                             // Always wrap so ancestors of matches keep the
                             // tree indentation; only visible children enter.
@@ -5486,6 +5683,18 @@
                     } else {
                         viewWrap.innerHTML = treeHTML(matches);
                     }
+                    // Keep the fold switch in step with the rendered view:
+                    // code folds on the Code tab, tree collapse-all on the
+                    // Tree tab, nothing on Table.
+                    xmlCodeFolds =
+                        wantView === "code" ? applyCodeFolds(viewWrap) : null;
+                    var hasFoldTargets =
+                        xmlCodeFolds ||
+                        (wantView !== "table" &&
+                            wantView !== "code" &&
+                            xmlTreeFoldable());
+                    foldBtn.style.display = hasFoldTargets ? "" : "none";
+                    if (hasFoldTargets) refreshXmlFoldBtn();
                 }
 
                 // Create toggle
@@ -5504,6 +5713,83 @@
                 toggle.appendChild(btnTable);
                 toggle.appendChild(btnCode);
                 showFileHeaderBar(toggle, null);
+
+                // Fold switch: one button drives both the Tree tab's
+                // collapse-all and the Code tab's indent folds; shown only
+                // when the current view has something to fold. Folds are
+                // session-only.
+                var foldBtn = document.createElement("button");
+                foldBtn.className = "fold-switch";
+                foldBtn.style.display = "none";
+                var xmlFoldActions = document.querySelector(
+                    "#file-header-bar .file-header-actions",
+                );
+                if (xmlFoldActions) xmlFoldActions.appendChild(foldBtn);
+                var xmlCodeFolds = null;
+                function xmlTreeFoldable() {
+                    return (
+                        viewWrap.querySelectorAll(".xml-node > .xml-children")
+                            .length > 0
+                    );
+                }
+                function refreshXmlFoldBtn() {
+                    var anyOpen;
+                    if (xmlCodeFolds) {
+                        anyOpen = xmlCodeFolds.ranges.some(function (r) {
+                            return !r.start.classList.contains("collapsed");
+                        });
+                    } else {
+                        anyOpen =
+                            viewWrap.querySelectorAll(
+                                ".xml-node > .xml-children",
+                            ).length >
+                            viewWrap.querySelectorAll(
+                                ".xml-node.collapsed > .xml-children",
+                            ).length;
+                    }
+                    foldBtn.textContent = anyOpen ? "Collapse" : "Expand";
+                    foldBtn.classList.toggle("active", !anyOpen);
+                }
+                foldBtn.onclick = function () {
+                    if (xmlCodeFolds) {
+                        var allCollapsed = xmlCodeFolds.ranges.every(function (
+                            r,
+                        ) {
+                            return r.start.classList.contains("collapsed");
+                        });
+                        xmlCodeFolds.ranges.forEach(function (r) {
+                            r.setCollapsed(!allCollapsed);
+                        });
+                    } else {
+                        var wantFold =
+                            viewWrap.querySelectorAll(
+                                ".xml-node > .xml-children",
+                            ).length >
+                            viewWrap.querySelectorAll(
+                                ".xml-node.collapsed > .xml-children",
+                            ).length;
+                        viewWrap.querySelectorAll(".xml-node").forEach(
+                            function (li) {
+                                if (li.querySelector(":scope > .xml-children")) {
+                                    li.classList.toggle("collapsed", wantFold);
+                                }
+                            },
+                        );
+                    }
+                    refreshXmlFoldBtn();
+                };
+                viewWrap.addEventListener("click", function (e) {
+                    if (!e.target.closest || !e.target.closest(".xml-fold"))
+                        return;
+                    var li = e.target.closest("li.xml-node");
+                    if (li) {
+                        li.classList.toggle("collapsed");
+                        if (foldBtn.style.display !== "none") {
+                            refreshXmlFoldBtn();
+                        }
+                    }
+                });
+
                 btnTree.onclick = function () {
                     setViewParam(null);
                     btnTree.className = "active";

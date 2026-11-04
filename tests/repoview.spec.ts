@@ -1327,3 +1327,150 @@ test.describe("Line-number gutter", () => {
     expect(margin).toBe(PAD);
   });
 });
+
+test.describe("Collapse & fold", () => {
+  // Indent-based folds on chroma code views (functions, JSON keys, …).
+  // The caret lives in the number gutter; the Collapse/Expand switch in
+  // the file header toggles every range at once. Folds are session-only.
+  test("python code folds collapse function bodies via the gutter caret", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "sample.py" }).click();
+    await page.locator("#content-area .line").first().waitFor();
+    expect(
+      await page.evaluate(
+        () => document.querySelectorAll("#content-area .line.foldable").length,
+      ),
+    ).toBe(2);
+
+    // Fold greet's body: the return line plus the blank separator hide.
+    await page.locator("#content-area .line.foldable .ln").first().click();
+    expect(
+      await page.evaluate(
+        () => document.querySelectorAll("#content-area .line.folded").length,
+      ),
+    ).toBe(2);
+    const visible = await page.evaluate(
+      () =>
+        Array.from(document.querySelectorAll("#content-area .line")).filter(
+          (el) => getComputedStyle(el).display !== "none",
+        ).length,
+    );
+    expect(visible).toBe(3);
+
+    // The collapsed fold keeps its ellipsis marker on the start line.
+    expect(
+      await page.evaluate(() => {
+        const cl = document.querySelector(
+          "#content-area .line.collapsed .cl",
+        );
+        return getComputedStyle(cl, "::after").content;
+      }),
+    ).toContain("⋯");
+
+    await page.locator("#content-area .line.foldable .ln").first().click();
+    expect(
+      await page.evaluate(
+        () => document.querySelectorAll("#content-area .line.folded").length,
+      ),
+    ).toBe(0);
+  });
+
+  test("the fold switch collapses and expands every range at once", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "data.json" }).click();
+    await page.locator("#content-area .line").first().waitFor();
+    expect(
+      await page.evaluate(
+        () => document.querySelectorAll("#content-area .line.folded").length,
+      ),
+    ).toBe(0);
+
+    const switchBtn = page.locator("#file-header-bar .fold-switch");
+    await switchBtn.click();
+    expect(
+      await page.evaluate(
+        () => document.querySelectorAll("#content-area .line.folded").length,
+      ),
+    ).toBeGreaterThan(0);
+    await expect(switchBtn).toHaveText("Expand");
+
+    await switchBtn.click();
+    expect(
+      await page.evaluate(
+        () => document.querySelectorAll("#content-area .line.folded").length,
+      ),
+    ).toBe(0);
+    await expect(switchBtn).toHaveText("Collapse");
+  });
+
+  test("xml tree nodes collapse child listings via carets", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "sample.xml" }).click();
+    await page.locator("#content-area li.xml-node").first().waitFor();
+    expect(
+      await page.evaluate(
+        () => document.querySelectorAll("#content-area .xml-fold").length,
+      ),
+    ).toBeGreaterThan(0);
+
+    await page.locator("#content-area .xml-fold").first().click();
+    const first = await page.evaluate(() => {
+      const li = document.querySelector("#content-area li.xml-node");
+      const ul = li.querySelector(":scope > ul.xml-children");
+      return {
+        collapsed: li.classList.contains("collapsed"),
+        hidden: ul ? getComputedStyle(ul).display === "none" : false,
+      };
+    });
+    expect(first.collapsed).toBe(true);
+    expect(first.hidden).toBe(true);
+
+    await page.locator("#content-area .xml-fold").first().click();
+    expect(
+      await page.evaluate(
+        () => !document.querySelector("#content-area li.xml-node").classList.contains("collapsed"),
+      ),
+    ).toBe(true);
+  });
+
+  test("the xml fold switch and Code tab fold their views", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "sample.xml" }).click();
+    await page.locator("#content-area li.xml-node").first().waitFor();
+
+    // Tree tab: collapse-all hits every node that has children.
+    const switchBtn = page.locator("#file-header-bar .fold-switch");
+    await switchBtn.click();
+    expect(
+      await page.evaluate(
+        () =>
+          document.querySelectorAll("#content-area .xml-node.collapsed")
+            .length,
+      ),
+    ).toBe(7);
+    await expect(switchBtn).toHaveText("Expand");
+    await switchBtn.click();
+    expect(
+      await page.evaluate(
+        () =>
+          document.querySelectorAll("#content-area .xml-node.collapsed")
+            .length,
+      ),
+    ).toBe(0);
+
+    // Code tab: the same switch drives the indent folds of the source.
+    await page.locator("button", { hasText: /^Code$/ }).first().click();
+    await page.locator("#content-area .line.foldable").first().waitFor();
+    await switchBtn.click();
+    expect(
+      await page.evaluate(
+        () => document.querySelectorAll("#content-area .line.folded").length,
+      ),
+    ).toBeGreaterThan(0);
+    await expect(switchBtn).toHaveText("Expand");
+  });
+});
