@@ -4,14 +4,20 @@
 > found bugs, environment notes). Last updated: 2026-11-04 (device handover
 > to a minimal Debian install).
 
-## Branch state (as of handover)
+## Branch state (as of stage 8, 2026-11-04)
 
 - Branch `feat/viewer-upgrade`, based on `master` (v0.17.0)
-- **12 commits, ALL UNPUSHED** — the ZIP includes `.git`, so after switching
-  devices run (from the extracted repo):
+- **20 commits, ALL UNPUSHED** — roadmap stages 1–8 (§13–§19 of
+  CHANGES.md) are complete: CSV sort + labels, wiki read-as, cross-device
+  access, MIT table, chart palettes + hover guideline (7b), histogram/
+  bubble/heat map (7c), README screenshots (stage 8, `83afeea`) and the
+  hash-pin housekeeping (`825ca86`). Stage 8's PR is drafted, not opened:
+  `gh` is not installed and pushing needs credentials, so see the
+  owner-facing draft at `~/Desktop/pr-feat-viewer-upgrade.md` — do not
+  push without the owner's go-ahead. Verify state with:
   ```bash
-  git log --oneline -12     # verify history came along
-  git push origin feat/viewer-upgrade
+  git log --oneline -20     # history intact after device switches
+  git rev-list --count origin/master..HEAD   # expect 20
   ```
 - Commit list (newest last):
   | Commit | Title |
