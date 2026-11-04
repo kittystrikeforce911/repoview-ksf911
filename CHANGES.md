@@ -30,7 +30,8 @@ hardening for the device handover.
 | 15 | `583f1fd` | feat | cross-device WebSocket origin tests + README access-guide | Interop |
 | 16 | `6dfd6ee` | docs | MIT license summary table (choosealicense.com) | Docs |
 | 17 | `78d7266` | feat | theme-aware chart palettes (`--rv-chart-N`) + hover guideline | Charts 7b |
-| 18 | *(this commit)* | feat | histogram, bubble, heat map chart types | Charts 7c |
+| 18 | `4df1646` | feat | histogram, bubble, heat map chart types | Charts 7c |
+| 19 | *(this commit)* | docs | README screenshots (charts/themes, code view, read-as) | Docs |
 
 ---
 
@@ -576,7 +577,7 @@ JS parse gate re-run clean; no backend change.
 
 ---
 
-## 18. *(this commit)* — feat(csv): histogram, bubble, heat map chart types
+## 18. `4df1646` — feat(csv): histogram, bubble, heat map chart types
 
 **Summary.** The Charts view grows from 8 to 11 shapes, closing out stage
 7c. All three new renderers build on the existing theme-variable palette
@@ -605,7 +606,9 @@ new dependencies:
   `chartTitle()` (agg(measure) by X · colour: …)
 
 ### Files
-`static/index.html` (+~170/−1), `tests/repoview.spec.ts` (+85)
+`static/index.html` (+226/−0), `tests/repoview.spec.ts` (+72/−0),
+`CHANGELOG.md` (+1/−0), `CHANGES.md` (+51/−5), `README.md` (+1/−1),
+`TODO.md` (+7/−5)
 
 ### Tests
 Playwright 70 → 73 (+3): histogram bins the `weight` column (bar count
@@ -615,6 +618,35 @@ bubble renders one area-scaled bubble per category (3 circles, radii
 one value row (3 cells) to a 3×3 colour grid where the strongest cell
 reaches `fill-opacity:0.96`, empty pairings sit at `0.04`, and cross
 cells carry "bucket / colour" titles.
+
+---
+
+## 19. *(this commit)* — docs: README screenshots (charts/themes, code view, read-as)
+
+**Summary.** The README gains a *Screenshots* section with three staged
+stills of the running app, filmed after stage 7c landed. The stageshow
+craft rules were applied as the framing discipline (one story per frame,
+restrained real strings, no dead corners), but the frames are real
+captures of the live product in Playwright — no faux rebuild — because
+the product itself runs on this machine; a fake UI of a screenshotable
+app would undercut the truthful-fidelity story the viewer sells.
+
+### Added
+- `docs/screenshots/charts-themes-nord.png` — Bubble chart of
+  `testdata/colors.csv` by category in the Nord theme, theme menu open
+  as the satellite (stage 7b/7c story)
+- `docs/screenshots/code-view-dark.png` — `main.go` code view in the
+  Dark theme, Chroma class-based highlighting (the GitHub-locally story)
+- `docs/screenshots/read-as-wiki.png` — the Read-as menu open over the
+  wiki-rendered `wiki-notes.txt` with resolved/aliased/dangling anchors
+- README section between the demo GIF and *Why*, each still with a
+  two-line caption
+
+### Files
+`docs/screenshots/*` (3 new PNGs, ~734 KB total), `README.md` (+22)
+
+### Tests
+Docs-only commit; gates re-run green (73/73 Playwright).
 
 ---
 
@@ -644,7 +676,8 @@ cells carry "bucket / colour" titles.
 | CSV column sorting from headers + control labels | `7d100c3` |
 | "Wiki Markdown" read-as menu item | `2e01bad` |
 | Chart series palette via theme vars + hover guideline | `78d7266` |
-| Histogram / bubble / heat map chart types | *(this commit)* |
+| Histogram / bubble / heat map chart types | `4df1646` |
+| README screenshots (charts/themes, code, read-as) | *(this commit)* |
 
 ### Docs
 | Change | Commit |
@@ -677,12 +710,18 @@ cells carry "bucket / colour" titles.
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **73 / 73 passed** — 70 verified at `78d7266`; +3 chart-type tests at *(this commit)* |
+| Playwright (Chromium) | **73 / 73 passed** — final: 70 verified at `78d7266`; +3 chart-type tests at `4df1646` |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
+
+## Deferred (branch follow-up)
+
+- ~~Stage 7b — chart palettes + hover guideline~~ — shipped `78d7266`
+- ~~Stage 7c — histogram / bubble / heatmap chart types~~ — shipped `4df1646`
+- ~~Stage 8 — screenshots for README/demo~~ — shipped *(this commit)*;
+  remaining action: push `feat/viewer-upgrade` and open the PR (draft text
+  handed to the owner — `gh` is not installed and the remote needs
+  credentials, so pushing is the owner's call)
 
 ## Deferred (not in this branch yet)
 
-- Stage 7b — chart palettes (light/dark-friendly alternates) and hover
-  guideline/cursor crosshair polish
-- Stage 7c — more chart types (histogram, bubble, heatmap selector)
-- Stage 8 — `stageshow` screenshots for README/demo, branch PR creation
+(none)

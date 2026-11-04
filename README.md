@@ -4,6 +4,27 @@ A lightweight, single-binary local folder viewer that replicates the GitHub UI f
 
 ![repoview-demo](https://github.com/user-attachments/assets/940a295f-bbc4-4949-b1a1-770f39781b2c)
 
+## Screenshots
+
+**CSV Charts, themed.** The Charts view on `colors.csv` — a Bubble of the
+categories drawn with the Nord palette, theme picker open. Series colours
+resolve through theme variables (`--rv-chart-1…10`), so the same chart
+recolours itself under Light / Dark / Nord / OpenCode Orng.
+
+![CSV charts in the Nord theme with the theme picker open](docs/screenshots/charts-themes-nord.png)
+
+**Code view, Dark.** Reading the viewer's own `main.go` in the Dark theme:
+GitHub-style tree, breadcrumb and Chroma highlighting rendered with theme
+classes — never inline colours.
+
+![Dark code view of main.go](docs/screenshots/code-view-dark.png)
+
+**Read file as.** A plain-text note re-read as Wiki Markdown (`?as=wiki`):
+Obsidian `[[wiki links]]` resolve to navigable anchors (broken targets are
+marked), with the Read-as menu open.
+
+![Read file as menu over a wiki-rendered note](docs/screenshots/read-as-wiki.png)
+
 ## Why
 
 I noticed my marketing team, when working with Claude Code and lots of markdown files, pushing commits to GitHub just to read them with a nice UI. That seemed backwards — why should you need to commit and push just to preview your docs? RepoView gives you that same GitHub reading experience locally, instantly.

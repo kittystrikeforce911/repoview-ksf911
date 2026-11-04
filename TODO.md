@@ -30,7 +30,7 @@
   | *(this docs commit)* | docs: handover notes and theme entry |
 - Last verified state: `go build` ✅ · `go vet` ✅ · `gofmt` clean ✅ ·
   `go test ./...` ok ✅ · **Playwright 73/73 passed** ✅ (through CHANGES.md
-  §18)
+  §19)
 - Full change record: see `CHANGES.md` (per-commit detail + cross-index).
   Keep `CHANGES.md` updated with each new commit; `CHANGELOG.md` stays the
   per-commit `[Unreleased]` entry log.
@@ -62,8 +62,12 @@
    68 → 70).
    ~~**Stage 7c** — histogram, bubble, heatmap~~ — **SHIPPED as
    CHANGES.md §18** (three new shapes on the theme-variable palette;
-   Playwright 70 → 73). Remaining: **Stage 8** — `stageshow` docs
-   screenshots + create the PR for `feat/viewer-upgrade`.
+   Playwright 70 → 73).
+   ~~**Stage 8** — README screenshots~~ — **SHIPPED as CHANGES.md §19**
+   (three staged stills in `docs/screenshots/`, filmed from the live app
+   in Playwright with the stageshow framing rules; `gh` is not installed,
+   so the PR itself is handed to the owner as a ready-to-run draft +
+   push/PR commands — do not push without the owner's go-ahead).
 
 ## BUGS / open questions
 
