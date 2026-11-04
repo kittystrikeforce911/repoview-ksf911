@@ -2,6 +2,8 @@
 
 ## [Unreleased]
 
+- [added] Uninstall scripts: `uninstall.sh` removes the user-installed binary (and any pending self-update leftover) and RepoView's update state, `uninstall.ps1` does the same on Windows and also drops the install directory from the user PATH if it was added; both mirror the installer paths and the update-state layout, pinned together by a Go contract test
+
 - [changed] README screenshots re-filmed on the current build: the charts/theme-picker, Dark code view and Read-as wiki stills were retaken after collapse & fold and the Dark rose theme landed, a fourth still (`docs/screenshots/folds-rose.png`) shows every fold of `main.go` collapsed in Dark rose, and the demo GIF is kept at the top with a note marking it as recorded on an earlier build
 - [changed] Install and updating caveats re-phrased for a public repository instead of this repository's private-fork phase: authentication applies to private mirrors, and update checks stay silent until a tagged release is published
 - [changed] Repository re-homed to `kittystrikeforce911/repoview-ksf911`: the README, installers (`install.sh`, `install.ps1`), the update checker (`repoview update` release API) and the release script now reference the new repository, the broken `go install <url>@latest` shortcut was replaced with clone-and-build steps, and `release.sh` pushes tags to the fork instead of the original upstream

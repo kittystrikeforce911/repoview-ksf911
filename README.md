@@ -104,6 +104,27 @@ Requires a Go toolchain (see `go.mod` for the floor). The binary is
 self-contained: all markup, styles and scripts are embedded at build time,
 so nothing else is needed at runtime.
 
+### Uninstall
+
+Both helpers remove the binary (and any pending self-update leftover)
+plus RepoView's update state:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/kittystrikeforce911/repoview-ksf911/master/uninstall.sh | bash
+```
+
+The Windows one also drops the install directory from your user PATH if
+it was added after installing:
+
+```powershell
+irm https://raw.githubusercontent.com/kittystrikeforce911/repoview-ksf911/master/uninstall.ps1 | iex
+```
+
+Install directories are only removed when the uninstall leaves them
+empty, so nothing belonging to other tools is touched. From-source
+installs were never laid down by an installer — delete the binary you
+built.
+
 ## Usage
 
 ```bash
@@ -424,6 +445,7 @@ static/index_test.html # Frontend test harness
 tests/                 # Playwright browser suite
 testdata/              # Sample files used by tests
 install.sh/.ps1        # Release asset installers (macOS/Linux, Windows)
+uninstall.sh/.ps1      # Removal helpers mirroring the installer targets
 release.sh             # Version bump + tag + push helper
 CHANGES.md             # Per-commit engineering record (this branch)
 CHANGELOG.md           # Per-release user-facing notes

@@ -39,6 +39,7 @@ hardening for the device handover.
 | 24 | `425d66d` | feat | styled fold switch + Dark rose theme | UI |
 | 25 | `fd98d04` | docs | re-point hash pins after branch identity rewrite | Housekeeping |
 | 26 | `5fb96c9` | docs | re-film README stills, outdated-GIF note, public-repo notes | Docs |
+| 27 | `pending` | feat | uninstall.sh and uninstall.ps1 | Installers |
 
 ---
 
@@ -955,6 +956,42 @@ app was not in.
   would undercut the viewer's honest-UI pitch (same verdict as §19).
 - `documentation.md` remains a tracked file (merged into the README by
   `ee258ea`, not deleted); the new code-view stills show it in the tree.
+
+---
+
+## 27. feat(install): uninstall.sh and uninstall.ps1
+
+**Summary.** The installers had no reverse path — a user who installed
+via the release one-liners had to hand-hunt the binary, the install
+directory and the update state to fully remove the tool. Both platforms
+now ship a mirror-image uninstaller: the same default locations as their
+installers, the same pending self-update leftover (`repoview.old`,
+written by `update.go`'s rename dance while the running executable is
+locked), and the same update-state directory
+(`<os.UserConfigDir()>/repoview/state.json`). The scripts are
+platform-specific and are deliberately not executed in CI; their
+*targets* are pinned instead — a Go contract test asserts that the
+installers' paths, the uninstallers' cleanup targets and update.go's
+state layout all stay in agreement, so the trio cannot silently drift.
+
+### Added
+- `uninstall.sh` — removes `$HOME/.local/bin/repoview` and
+  `repoview.old`, removes the install directory only when the cleanup
+  left it empty, and deletes the update state under `$XDG_CONFIG_HOME`
+  (or `~/.config`) on Linux and `~/Library/Application Support/repoview`
+  on macOS; `REPOVIEW_INSTALL_DIR` overrides the default for
+  non-standard installs
+- `uninstall.ps1` — removes `%LOCALAPPDATA%\Programs\repoview`
+  (`repoview.exe` and its `.old` leftover), removes the install
+  directory when empty, deletes `%APPDATA%\repoview`, and drops the
+  install directory from the user PATH — the installer's final printout
+  invites a manual PATH addition, so an uninstall must be able to undo
+  it
+- `install_scripts_test.go` — the contract: install.sh's
+  `INSTALL_DIR`, uninstall.sh's removal paths, both .ps1 files' install
+  tree, and update.go's `"repoview", "state.json"` layout bound to the
+  same locations
+- README: *Uninstall* subsection under Install; project-structure entry
 
 ---
 
