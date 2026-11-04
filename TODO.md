@@ -8,7 +8,8 @@
 
 - Branch `feat/viewer-upgrade`, based on `master` (v0.17.0)
 - **23 commits, ALL UNPUSHED** — stages 1–8 (CHANGES.md §13–§19) plus the
-  theme-menu fix (§20): CSV sort + labels, wiki read-as, cross-device
+  theme-menu fix (§20) and the line-number gutter padding (§21): CSV sort
+  + labels, wiki read-as, cross-device
   access, MIT table, chart palettes + hover guideline (7b), histogram/
   bubble/heat map (7c), README screenshots (stage 8, `83afeea`), hash
   pinning (`825ca86`), TODO refresh (`190d0a3`). Stage 8's PR is drafted,
@@ -35,8 +36,8 @@
   | `d8c7919` | ci(tests): Playwright webServer runs without mise; 60 s boot timeout |
   | *(this docs commit)* | docs: handover notes and theme entry |
 - Last verified state: `go build` ✅ · `go vet` ✅ · `gofmt` clean ✅ ·
-  `go test ./...` ok ✅ · **Playwright 75/75 passed** ✅ (through CHANGES.md
-  §20)
+  `go test ./...` ok ✅ · **Playwright 79/79 passed** ✅ (through CHANGES.md
+  §21)
 - Full change record: see `CHANGES.md` (per-commit detail + cross-index).
   Keep `CHANGES.md` updated with each new commit; `CHANGELOG.md` stays the
   per-commit `[Unreleased]` entry log.

@@ -992,9 +992,25 @@
             }
             .source-code .lnt,
             .source-code .lntd,
-            .source-code .lntable {
+            .source-code .lntable,
+            .source-code .ln,
+            .markdown-body .ln {
                 color: var(--rv-text-tertiary);
                 border: 0;
+            }
+            /* Numbered-line gutter: right padding between the number
+               column and the code (16.25px at the 13px mono), matching the
+               plain-text reading view's 1.25em gutter. Chroma emits inline
+               .ln spans in code views (py/go/json/yaml, the HTML and XML
+               Code tabs, any Read-as-code flow); markdown fences carry no
+               .ln today but inherit the gap if numbering is ever turned
+               on there. */
+            .source-code .ln,
+            .source-code .lnt,
+            .markdown-body .ln {
+                padding-right: 1.25em;
+                text-align: right;
+                user-select: none;
             }
             .source-code .k,
             .source-code .kc,

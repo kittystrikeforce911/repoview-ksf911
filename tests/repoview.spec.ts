@@ -1268,3 +1268,62 @@ test.describe("Theme menu", () => {
     expect(clickable).toBe(true);
   });
 });
+
+test.describe("Line-number gutter", () => {
+  // The gutter keeps a gap between the number column and the code:
+  // 1.25em at the 13px mono font = 16.25px, same rhythm as the
+  // plain-text reading view's numbered gutter.
+  const PAD = "16.25px";
+
+  test("code views pad the number column", async ({ page }) => {
+    for (const label of ["sample.py", "data.json", "sample.go", "config.yaml"]) {
+      await page.goto("/");
+      await page.locator(".tree-item .label", { hasText: label }).click();
+      await page.locator("#content-area .ln").first().waitFor();
+      const pad = await page.evaluate(
+        () => getComputedStyle(document.querySelector("#content-area .ln")).paddingRight,
+      );
+      expect(pad).toBe(PAD);
+    }
+  });
+
+  test("xml and html Code tabs use the same padded gutter", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "sample.xml" }).click();
+    await page.locator("button", { hasText: /^Code$/ }).first().click();
+    await page.locator("#content-area .ln").first().waitFor();
+    let pad = await page.evaluate(
+      () => getComputedStyle(document.querySelector("#content-area .ln")).paddingRight,
+    );
+    expect(pad).toBe(PAD);
+
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "sample.html" }).click();
+    await page.locator("button", { hasText: /^Code$/ }).first().click();
+    await page.locator("#content-area .ln").first().waitFor();
+    pad = await page.evaluate(
+      () => getComputedStyle(document.querySelector("#content-area .ln")).paddingRight,
+    );
+    expect(pad).toBe(PAD);
+  });
+
+  test("markdown fences render without numbered lines", async ({ page }) => {
+    await page.goto("/hello.md");
+    await page.locator(".markdown-body pre code").first().waitFor();
+    const count = await page.evaluate(
+      () => document.querySelectorAll("#content-area .ln").length,
+    );
+    expect(count).toBe(0);
+  });
+
+  test("reading view keeps its padded number gutter", async ({ page }) => {
+    await page.addInitScript(() => localStorage.setItem("plainTextNumbers", "1"));
+    await page.goto("/example.txt");
+    await page.locator("pre.plain-text.show-numbers").waitFor();
+    const margin = await page.evaluate(() => {
+      const line = document.querySelector(".plain-text .plain-line");
+      return line ? getComputedStyle(line, "::before").marginRight : null;
+    });
+    expect(margin).toBe(PAD);
+  });
+});

@@ -33,6 +33,7 @@ hardening for the device handover.
 | 18 | `4df1646` | feat | histogram, bubble, heat map chart types | Charts 7c |
 | 19 | `83afeea` | docs | README screenshots (charts/themes, code view, read-as) | Docs |
 | 20 | `15d8c0e` | fix | theme menu clears the sidebar on short paths | UI |
+| 21 | *(this commit)* | fix | padded line-number gutters across all numbered views | UI |
 
 ---
 
@@ -703,6 +704,50 @@ re-run green.
 
 ---
 
+## 21. *(this commit)* — fix(ui): padded line-number gutters across all numbered views
+
+**Summary.** The owner asked to add right padding to the numbered lines
+inside code files. Where the numbers come from, verified by a rendered-
+markup sweep across every view that emits them:
+
+- **Code views (chroma)** — `/api/file` returns the *inline* line-number
+  variant: each line is a `<span class="line">` holding a
+  `<span class="ln">   1</span>` followed by the code in `<span class="cl">`.
+  This covers `.py`, `.go`, `.json`, `.yaml` and any other lexed file,
+  plus the HTML file *Code* tab and the XML viewer's *Code* tab (39
+  numbered lines on `sample.xml`), and any `?as=code` flow — all of them
+  render through the same formatter (`main.go:710–712`).
+- **Plain-text reading view** — numbers come from a CSS `::before`
+  counter on `.plain-line`, already spaced `width: 3em; margin-right:
+  1.25em`, so no change was needed there.
+- **Markdown fences** — render with no chroma and **no line numbers at
+  all** (0 `.ln` spans in a rendered markdown body), so there is nothing
+  to pad today; the new rule scopes `.markdown-body .ln` anyway so the
+  gap applies automatically if numbering is ever switched on there.
+
+The chroma `.ln` spans previously had `padding-right: 0`. The existing
+number-column rule at index.html only listed the *table* variant classes
+(`.lnt/.lntd/.lntable`) — never emitted by this chroma version — so the
+rule now also covers the live `.ln` class: numbers take
+`color: var(--rv-text-tertiary)` as originally intended, and the gutter
+gains `padding-right: 1.25em` (16.25px at the 13px mono), exactly
+matching the plain-text view's gutter so both feel like one design
+decision across views. `text-align: right` and `user-select: none`
+finish it (numbers stay out of copied code).
+
+### Files
+`static/index.html` (+~21/−~2), `tests/repoview.spec.ts` (+62/−0)
+
+### Tests
+Playwright **+4 (75 → 79)** — new `Line-number gutter` describe: code
+views (`.py`/`.json`/`.go`/`.yaml` via the sidebar) assert computed
+`padding-right: 16.25px`; the XML and HTML "Code" tabs assert the same;
+markdown fences assert no numbered lines exist (pinning the scoping
+decision); the reading view (numbers toggled on) asserts its existing
+1.25em margin. Full gate battery re-run green.
+
+---
+
 ## Cross-index by area
 
 ### Backend — `main.go` / `main_test.go`
@@ -732,6 +777,7 @@ re-run green.
 | Histogram / bubble / heat map chart types | `4df1646` |
 | README screenshots (charts/themes, code, read-as) | `83afeea` |
 | Theme menu clears the sidebar on short paths | `15d8c0e` |
+| Padded line-number gutters across numbered views | *(this commit)* |
 
 ### Docs
 | Change | Commit |
@@ -764,7 +810,7 @@ re-run green.
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **75 / 75 passed** — 73 at `83afeea`; +2 theme-menu regression tests at `15d8c0e` |
+| Playwright (Chromium) | **79 / 79 passed** — 75 at `15d8c0e`; +4 gutter tests at *(this commit)* |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (branch follow-up)
