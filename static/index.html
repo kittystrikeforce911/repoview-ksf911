@@ -45,6 +45,17 @@
                 --rv-code-tag: #116329;
                 --rv-code-attr: #953800;
                 --rv-code-op: #57606a;
+                /* Chart series palette (GitHub-bright hexes). */
+                --rv-chart-1: #0969da;
+                --rv-chart-2: #cf6a0c;
+                --rv-chart-3: #1a7f37;
+                --rv-chart-4: #cf222e;
+                --rv-chart-5: #8250df;
+                --rv-chart-6: #953800;
+                --rv-chart-7: #0e8a8a;
+                --rv-chart-8: #57606a;
+                --rv-chart-9: #b359c6;
+                --rv-chart-10: #6e7f1e;
             }
             [data-theme="dark"] {
                 color-scheme: dark;
@@ -83,6 +94,17 @@
                 --rv-code-tag: #f38ba8;
                 --rv-code-attr: #f9e2af;
                 --rv-code-op: #94e2d5;
+                /* Chart series palette (Catppuccin). */
+                --rv-chart-1: #89b4fa;
+                --rv-chart-2: #fab387;
+                --rv-chart-3: #a6e3a1;
+                --rv-chart-4: #f38ba8;
+                --rv-chart-5: #cba6f7;
+                --rv-chart-6: #f9e2af;
+                --rv-chart-7: #94e2d5;
+                --rv-chart-8: #9399b2;
+                --rv-chart-9: #f5c2e7;
+                --rv-chart-10: #74c7ec;
             }
             /* Nord (colored theme 1) — official Nord palette
                https://www.nordtheme.com/docs/colors-and-palettes */
@@ -123,6 +145,17 @@
                 --rv-code-tag: #8fbcbb;
                 --rv-code-attr: #ebcb8b;
                 --rv-code-op: #81a1c1;
+                /* Chart series palette (official Nord). */
+                --rv-chart-1: #88c0d0;
+                --rv-chart-2: #d08770;
+                --rv-chart-3: #a3be8c;
+                --rv-chart-4: #bf616a;
+                --rv-chart-5: #b48ead;
+                --rv-chart-6: #ebcb8b;
+                --rv-chart-7: #8fbcbb;
+                --rv-chart-8: #81a1c1;
+                --rv-chart-9: #d8dee9;
+                --rv-chart-10: #5e81ac;
             }
             /* OpenCode Orng (colored theme 2) — from the OpenCode "Orng"
                colorway (https://opencode.ai/theme): neutral #0a0a0a base,
@@ -164,6 +197,17 @@
                 --rv-code-tag: #e06c75;
                 --rv-code-attr: #e5c07b;
                 --rv-code-op: #eeeeee;
+                /* Chart series palette (OpenCode Orng). */
+                --rv-chart-1: #ec5b2b;
+                --rv-chart-2: #ee7948;
+                --rv-chart-3: #fab283;
+                --rv-chart-4: #e06c75;
+                --rv-chart-5: #6ba1e6;
+                --rv-chart-6: #56b6c2;
+                --rv-chart-7: #98c379;
+                --rv-chart-8: #a3a3a3;
+                --rv-chart-9: #e5c07b;
+                --rv-chart-10: #d8976c;
             }
 
             /* ── Reset & Base ─────────────────────────────────────────── */
@@ -1313,6 +1357,16 @@
             .chart-dot:hover {
                 opacity: 1;
                 filter: brightness(1.08);
+            }
+            /* Hover guideline: a theme-accent line that follows the
+               pointer across the plot. Visibility is toggled by the
+               inline attribute from the pointer handlers in JS. */
+            .csv-chart .chart-cursor {
+                stroke: var(--rv-border-active);
+                stroke-width: 1;
+                stroke-dasharray: 4 3;
+                opacity: 0.8;
+                pointer-events: none;
             }
             .chart-legend {
                 display: flex;
@@ -4367,9 +4421,65 @@
                             return;
                         }
                         chartBox.innerHTML = res.svg;
+                        attachChartCursor();
                         var plotted = indices.length;
                         chartNote.textContent =
                             "plotting " + plotted + " of " + parsed.rows.length + " rows";
+                    }
+
+                    // attachChartCursor adds the hover guideline to the
+                    // freshly rendered SVG: a line that follows the pointer
+                    // across the plot — vertical for most chart shapes,
+                    // a horizontal span that tracks the cursor for the
+                    // horizontal-bar layout. Pie/donut wheels get none.
+                    // Pointer coordinates are mapped into the SVG viewBox
+                    // through getScreenCTM, so the guide stays accurate at
+                    // any rendered size. Re-created on every render because
+                    // chartBox.innerHTML replaces the SVG wholesale.
+                    function attachChartCursor() {
+                        var svg = chartBox.querySelector("svg.csv-chart");
+                        if (
+                            !svg ||
+                            svg.classList.contains("chart-pie") ||
+                            svg.classList.contains("chart-donut")
+                        ) {
+                            return;
+                        }
+                        var isHBar = svg.classList.contains("chart-hbar");
+                        var cursor = document.createElementNS(
+                            "http://www.w3.org/2000/svg",
+                            "line",
+                        );
+                        cursor.setAttribute("class", "chart-cursor");
+                        cursor.setAttribute("visibility", "hidden");
+                        svg.appendChild(cursor);
+                        var pt = svg.createSVGPoint();
+                        svg.addEventListener("pointermove", function (e) {
+                            var ctm = svg.getScreenCTM();
+                            if (!ctm) {
+                                return;
+                            }
+                            pt.x = e.clientX;
+                            pt.y = e.clientY;
+                            var loc = pt.matrixTransform(ctm.inverse());
+                            var x = Math.min(860, Math.max(0, loc.x));
+                            var y = Math.min(420, Math.max(0, loc.y));
+                            if (isHBar) {
+                                cursor.setAttribute("x1", "170");
+                                cursor.setAttribute("x2", "782");
+                                cursor.setAttribute("y1", String(y));
+                                cursor.setAttribute("y2", String(y));
+                            } else {
+                                cursor.setAttribute("x1", String(x));
+                                cursor.setAttribute("x2", String(x));
+                                cursor.setAttribute("y1", "20");
+                                cursor.setAttribute("y2", "400");
+                            }
+                            cursor.setAttribute("visibility", "visible");
+                        });
+                        svg.addEventListener("pointerleave", function () {
+                            cursor.setAttribute("visibility", "hidden");
+                        });
                     }
 
                     chartTypeSel.onchange = function () {
@@ -5601,9 +5711,18 @@
 
             /* ── CSV charts (hand-rolled SVG, no deps) ────────────────── */
 
+            // Series palette indices resolve through --rv-chart-N so chart
+            // colours follow the active theme (Light keeps the original
+            // GitHub-bright ramp; Dark is Catppuccin, Nord official, OpenCode
+            // the Orng accent ramp). Fills/strokes must be written as inline
+            // styles (style="fill:var(--rv-chart-N)") because SVG
+            // presentation attributes cannot hold var(); legend swatches
+            // already use style="background:" and work with the same values.
             var CSV_CHART_COLORS = [
-                "#0969da", "#cf6a0c", "#1a7f37", "#cf222e", "#8250df",
-                "#953800", "#0e8a8a", "#57606a", "#b359c6", "#6e7f1e",
+                "var(--rv-chart-1)", "var(--rv-chart-2)", "var(--rv-chart-3)",
+                "var(--rv-chart-4)", "var(--rv-chart-5)", "var(--rv-chart-6)",
+                "var(--rv-chart-7)", "var(--rv-chart-8)", "var(--rv-chart-9)",
+                "var(--rv-chart-10)",
             ];
 
             function chartTrunc(s, n) {
@@ -5831,7 +5950,7 @@
                             parts +=
                                 '<rect class="chart-rect" x="' + x.toFixed(2) + '" y="' + y.toFixed(2) +
                                 '" width="' + bw.toFixed(2) + '" height="' + h.toFixed(2) +
-                                '" fill="' + CSV_CHART_COLORS[0] + '">' +
+                                '" style="fill:' + CSV_CHART_COLORS[0] + '">' +
                                 "<title>" + esc(b.key + ": " + fmtChartNum(v)) + "</title></rect>";
                         }
                     } else {
@@ -5854,7 +5973,7 @@
                                     parts +=
                                         '<rect class="chart-rect" x="' + (M.l + bi * step + (step - bw) / 2).toFixed(2) +
                                         '" y="' + yAcc.toFixed(2) + '" width="' + bw.toFixed(2) +
-                                        '" height="' + hS.toFixed(2) + '" fill="' + color + '">' +
+                                        '" height="' + hS.toFixed(2) + '" style="fill:' + color + '">' +
                                         "<title>" + esc(b.key + " / " + g + ": " + fmtChartNum(v)) + "</title></rect>";
                                 } else {
                                     var bwG = Math.min(24, Math.max(3, (bw / gkeys.length) * 0.9));
@@ -5863,7 +5982,7 @@
                                     parts +=
                                         '<rect class="chart-rect" x="' + xG.toFixed(2) + '" y="' + (yBase - hG).toFixed(2) +
                                         '" width="' + bwG.toFixed(2) + '" height="' + hG.toFixed(2) +
-                                        '" fill="' + color + '">' +
+                                        '" style="fill:' + color + '">' +
                                         "<title>" + esc(b.key + " / " + g + ": " + fmtChartNum(v)) + "</title></rect>";
                                 }
                             });
@@ -5904,7 +6023,7 @@
                     parts +=
                         '<path class="chart-slice" d="' +
                         chartArcPath(cx, cy, r0, r1, a, a1 - 0.004) +
-                        '" fill="' + color + '"><title>' +
+                        '" style="fill:' + color + '"><title>' +
                         esc(s.key + ": " + fmtChartNum(s.v) +
                             " (" + Math.round((s.v / total) * 100) + "%)") +
                         "</title></path>";
@@ -5955,7 +6074,7 @@
                             '<rect class="chart-rect" x="' + barX + '" y="' + (cy - Math.min(14, rowH * 0.36)).toFixed(2) +
                             '" width="' + bw.toFixed(2) + '" height="' +
                             Math.min(28, rowH * 0.72).toFixed(2) +
-                            '" fill="' + CSV_CHART_COLORS[0] + '"><title>' +
+                            '" style="fill:' + CSV_CHART_COLORS[0] + '"><title>' +
                             esc(r.key + ": " + fmtChartNum(r.value)) + "</title></rect>";
                         parts +=
                             '<text x="' + (barX + bw + 6).toFixed(2) + '" y="' + (cy + 4).toFixed(2) +
@@ -6023,7 +6142,7 @@
                         if (s.pts.length === 1) {
                             parts +=
                                 '<circle class="chart-dot" cx="' + x.toFixed(2) + '" cy="' + y.toFixed(2) +
-                                '" r="4" fill="' + color + '"><title>' + esc(p.key + ": " + fmtChartNum(p.v)) +
+                                '" r="4" style="fill:' + color + '"><title>' + esc(p.key + ": " + fmtChartNum(p.v)) +
                                 "</title></circle>";
                         }
                     });
@@ -6032,12 +6151,12 @@
                         var pPath = dLine + " L " + lastX.toFixed(2) + " " + (M.t + plotH) +
                             " L " + M.l + " " + (M.t + plotH) + " Z";
                         parts +=
-                            '<path class="chart-area" d="' + pPath + '" fill="' + color +
-                            '" style="fill-opacity:0.14;stroke:none"/>';
+                            '<path class="chart-area" d="' + pPath + '" style="fill:' + color +
+                            ';fill-opacity:0.14;stroke:none"/>';
                     }
                     parts +=
-                        '<path class="chart-line" d="' + dLine + '" fill="none" stroke="' + color +
-                        '" style="stroke-width:2"/><title>' + esc(s.key === "" ? "" : s.key) + "</title></path>";
+                        '<path class="chart-line" d="' + dLine + '" fill="none" style="stroke:' + color +
+                        ';stroke-width:2"/><title>' + esc(s.key === "" ? "" : s.key) + "</title></path>";
                 });
                 parts += chartXAxisLine(M, plotW, plotH);
                 return parts;
@@ -6105,7 +6224,7 @@
                     var y = M.t + plotH - (p.y / niceY) * plotH;
                     parts +=
                         '<circle class="chart-dot" cx="' + x.toFixed(2) + '" cy="' + y.toFixed(2) +
-                        '" r="4" fill="' + color + '"><title>' + esc(String(p.label) + " (" + p.gkey + ")") +
+                        '" r="4" style="fill:' + color + '"><title>' + esc(String(p.label) + " (" + p.gkey + ")") +
                         "</title></circle>";
                 });
                 parts +=

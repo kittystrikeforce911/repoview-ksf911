@@ -683,6 +683,76 @@ test.describe("Markdown raw/preview toggle", () => {
     await expect(page.locator("path.chart-line")).toHaveCount(3);
   });
 
+  test("CSV charts colour series through theme variables", async ({ page }) => {
+    await page.goto("/colors.csv");
+    await page.locator(".view-toggle button", { hasText: "Charts" }).click();
+    const rect = page.locator("svg.csv-chart rect.chart-rect").first();
+    await expect(rect).toBeVisible();
+
+    // Fills are written as inline styles carrying the theme variable
+    // (SVG presentation attributes cannot hold var()).
+    expect(await rect.getAttribute("style")).toMatch(/^fill:var\(--rv-chart-1\)/);
+
+    // The variable resolves through the active theme's palette: switch
+    // Light → Nord and the same chart element re-resolves to a different
+    // concrete colour without being re-rendered.
+    const light = await rect.evaluate((el) => getComputedStyle(el).fill);
+    expect(light).toMatch(/^rgb\(/);
+    await page.locator("#theme-toggle").click();
+    await page
+      .locator("#theme-menu")
+      .locator(".theme-menu-item", { hasText: "Nord" })
+      .click();
+    await expect(page.locator("html")).toHaveAttribute("data-theme", "nord");
+    const nord = await rect.evaluate((el) => getComputedStyle(el).fill);
+    expect(nord).toMatch(/^rgb\(/);
+    expect(nord).not.toBe(light);
+  });
+
+  test("CSV charts show a hover guideline that follows the pointer", async ({ page }) => {
+    await page.goto("/colors.csv");
+    await page.locator(".view-toggle button", { hasText: "Charts" }).click();
+    const svg = page.locator("svg.csv-chart");
+    await expect(svg).toBeVisible();
+    const cursor = svg.locator("line.chart-cursor");
+
+    // Hidden until the pointer enters the chart
+    await expect(cursor).toHaveAttribute("visibility", "hidden");
+
+    const box = await svg.boundingBox();
+    expect(box).toBeTruthy();
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    await expect(cursor).toHaveAttribute("visibility", "visible");
+
+    // The vertical guide tracks the pointer's position in the viewBox
+    const xMid = await cursor.getAttribute("x1");
+    await page.mouse.move(box!.x + box!.width * 0.25, box!.y + box!.height / 2);
+    const xLeft = await cursor.getAttribute("x1");
+    expect(parseFloat(xLeft!)).toBeLessThan(parseFloat(xMid!));
+
+    // Leaving the chart hides the guide again
+    await page.mouse.move(box!.x - 50, box!.y + box!.height / 2);
+    await expect(cursor).toHaveAttribute("visibility", "hidden");
+
+    // Pie wheels get no guideline
+    await page.locator(".csv-chart-type").selectOption("pie");
+    await expect(page.locator("svg.csv-chart path.chart-slice").first()).toBeVisible();
+    await expect(page.locator("svg.csv-chart line.chart-cursor")).toHaveCount(0);
+
+    // Horizontal bars: the guide spans the bar area and tracks vertically
+    await page.locator(".csv-chart-type").selectOption("hbar");
+    await expect(page.locator("svg.csv-chart rect.chart-rect").first()).toBeVisible();
+    const cursorH = page.locator("svg.csv-chart line.chart-cursor");
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height / 2);
+    await expect(cursorH).toHaveAttribute("visibility", "visible");
+    await expect(cursorH).toHaveAttribute("x1", "170");
+    await expect(cursorH).toHaveAttribute("x2", "782");
+    const hy = await cursorH.getAttribute("y1");
+    await page.mouse.move(box!.x + box!.width / 2, box!.y + box!.height * 0.25);
+    const hy2 = await cursorH.getAttribute("y1");
+    expect(parseFloat(hy2!)).toBeLessThan(parseFloat(hy!));
+  });
+
   test("CSV charts render the filtered row set", async ({ page }) => {
     await page.goto("/colors.csv");
     // Filter before opening charts

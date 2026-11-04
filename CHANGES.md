@@ -28,7 +28,8 @@ hardening for the device handover.
 | 13 | `7d100c3` | feat | CSV column sort from table headers + descriptive control labels | CSV sort/labels |
 | 14 | `2e01bad` | feat | "Wiki Markdown" in Read file as (`as=wiki`) | Read-as wiki |
 | 15 | `583f1fd` | feat | cross-device WebSocket origin tests + README access-guide | Interop |
-| 16 | *(this commit)* | docs | MIT license summary table (choosealicense.com) | Docs |
+| 16 | `6dfd6ee` | docs | MIT license summary table (choosealicense.com) | Docs |
+| 17 | *(this commit)* | feat | theme-aware chart palettes (`--rv-chart-N`) + hover guideline | Charts 7b |
 
 ---
 
@@ -503,7 +504,7 @@ port); `go test ./...` green; Playwright re-run unchanged (68/68).
 
 ---
 
-## 16. *(this commit)* — docs: MIT license summary table (choosealicense.com)
+## 16. `6dfd6ee` — docs: MIT license summary table (choosealicense.com)
 
 **Summary.** The bare `MIT` under the README License section becomes the
 one-line choosealicense.com description plus its Permissions / Conditions /
@@ -517,10 +518,58 @@ notice required; no warranty, no liability).
   source page
 
 ### Files
-`README.md` (+8/−1), `CHANGELOG.md` (+1)
+`README.md` (+7/−1), `CHANGELOG.md` (+1), `CHANGES.md` (+26/−3), `TODO.md`
+(+3/−4)
 
 ### Tests
 Docs-only commit; all gates re-run green (68/68 Playwright).
+
+---
+
+## 17. *(this commit)* — feat(csv): theme-aware chart palettes + hover guideline
+
+**Summary.** The SVG chart palette is no longer hard-coded to one set of
+bright hexes: every series fill/stroke now resolves through new
+`--rv-chart-1…10` theme variables, so charts recolour themselves with the
+four-way theme picker (Light keeps the original GitHub-bright ramp; Dark is
+Catppuccin; Nord the official palette; OpenCode the Orng accent ramp).
+Because SVG *presentation attributes* cannot hold `var()`, the palette
+writes move to inline `style="fill:…"` / `style="stroke:…"` (the legend
+swatches already worked that way); grid/axis lines were already
+inline-`var()` styled. On top of this, non-pie charts gain a hover
+guideline — a theme-accent line that follows the pointer across the plot
+while you read values — the polish item queued as stage 7b.
+
+### Added
+- `--rv-chart-1` … `--rv-chart-10` defined in all four theme blocks:
+  Light = current GitHub bright hexes, Dark = Catppuccin Mocha accents,
+  Nord = the official Nord colour ramp, OpenCode = the Orng accent ramp
+- `CSV_CHART_COLORS` now holds `var(--rv-chart-N)` strings; every palette
+  write converted from `fill=`/`stroke=` attributes to inline styles —
+  grouped/stacked/vertical bar rects, pie slice paths, hbar rects, line
+  dots, line/area paths (`area` keeps `fill-opacity:0.14;stroke:none` in
+  the same style), scatter dots; legend swatches unchanged (`background:`)
+- Hover guideline: `attachChartCursor()` appends a `<line class="chart-cursor">`
+  to the freshly-rendered SVG and maps pointer coordinates into the viewBox
+  via `createSVGPoint` + `getScreenCTM().inverse()`, so the guide tracks
+  correctly at any rendered scale; vertical types get a vertical guide
+  (viewBox y 20→400), horizontal bars get a horizontal span (x 170→782)
+  whose y follows the cursor; `pointerleave` hides it; pie/donut get none
+- `.chart-cursor` CSS: `var(--rv-border-active)` stroke, dashed, 0.8
+  opacity, `pointer-events: none`
+
+### Files
+`static/index.html` (+~120/−14 incl. 4×10 theme palette lines)
+
+### Tests
+Playwright 68 → 70 (+2): the palette test asserts the inline
+`fill:var(--rv-chart-1)` write, then flips Light → Nord through the real
+theme menu and shows the same chart element resolves to a different
+computed colour without being re-rendered; the cursor test drives the
+pointer across the rendered bar chart (guide hidden → follows pointer with
+x decreasing leftwards → hides on leave), verifies pie wheels render no
+cursor line, and checks the hbar x-span (170→782) with vertical tracking.
+JS parse gate re-run clean; no backend change.
 
 ---
 
@@ -533,7 +582,7 @@ Docs-only commit; all gates re-run green (68/68 Playwright).
 | `as=` renderer override (txt/md/csv/xml) | `abcceb0`, `d5d5d3c` |
 | `isPlainText` flag for `.txt` reading view | `34fec62` |
 | Chroma class-based token formatter (`WithClasses`) | `a507635` |
-| `as=wiki` override: force wiki expansion anywhere | *(this commit)* |
+| `as=wiki` override: force wiki expansion anywhere | `2e01bad` |
 | `isXML` / `rawXML` flags | `d5d5d3c` |
 
 ### Frontend — `static/index.html`
@@ -548,7 +597,8 @@ Docs-only commit; all gates re-run green (68/68 Playwright).
 | Chip body removes filter | `4912f7d` (✕), `0e33fb0` (body) |
 | Four-way theme picker + themed chroma/plain-text CSS | `a507635` |
 | CSV column sorting from headers + control labels | `7d100c3` |
-| "Wiki Markdown" read-as menu item | *(this commit)* |
+| "Wiki Markdown" read-as menu item | `2e01bad` |
+| Chart series palette via theme vars + hover guideline | *(this commit)* |
 
 ### Docs
 | Change | Commit |
@@ -558,7 +608,7 @@ Docs-only commit; all gates re-run green (68/68 Playwright).
 | README feature bullet for theming | `a507635` |
 | Debian dev-env setup, `TODO.md` handover notes, this file brought current | `f6cb0ee` |
 | README "Access from other devices" cross-device guide | `583f1fd` |
-| MIT license summary table (choosealicense.com) | *(this commit)* |
+| MIT license summary table (choosealicense.com) | `6dfd6ee` |
 | `CHANGELOG.md` `[Unreleased]` entries per commit | all feature/fix commits |
 
 ### Tests & fixtures
@@ -567,7 +617,7 @@ Docs-only commit; all gates re-run green (68/68 Playwright).
 | Backend hardening + as/xml/override tests | `c7edfaf`, `abcceb0`, `34fec62`, `d5d5d3c` |
 | `tests/repoview.spec.ts` 43 → 59 → 62 tests | filter/x txt/xml/charts commits, then theme commits |
 | Theme suite (menu cycle, dark `.txt` regression, classed code view) | `a507635` |
-| Sort/label suite + read-as-wiki suite; `wiki-notes.txt` fixture | `7d100c3` (sort), *(this commit)* (wiki) |
+| Sort/label suite + read-as-wiki suite; `wiki-notes.txt` fixture | `7d100c3` (sort), `2e01bad` (wiki) |
 | Playwright webServer without mise; 60 s boot timeout | `d8c7919` |
 | Fixtures: `testdata/colors.csv`, `testdata/sample.xml` | `4912f7d`, `d5d5d3c` |
 
@@ -581,7 +631,7 @@ Docs-only commit; all gates re-run green (68/68 Playwright).
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **68 / 68 passed** — 66 verified at `7d100c3`; +2 wiki read-as tests at *(this commit)* |
+| Playwright (Chromium) | **70 / 70 passed** — 68 verified at `583f1fd`/`6dfd6ee`; +2 chart-palette/cursor tests at *(this commit)* |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (not in this branch yet)
