@@ -36,7 +36,7 @@ hardening for the device handover.
 | 21 | `e2f78ef` | fix | padded line-number gutters across all numbered views | UI |
 | 22 | `a7f6a21` | docs | documentation.md + custom-themes guide | Docs |
 | 23 | `aac917e` | feat | collapse & fold for hierarchical views | UI |
-| 24 | *(this commit)* | feat | styled fold switch + Dark rose theme | UI |
+| 24 | `ce944db` | feat | styled fold switch + Dark rose theme | UI |
 
 ---
 
@@ -842,7 +842,7 @@ re-run green (83/83; Go tests, vet, gofmt, JS parse).
 
 ---
 
-## 24. *(this commit)* — feat(ui): styled fold switch + Dark rose theme
+## 24. `ce944db` — feat(ui): styled fold switch + Dark rose theme
 
 **Summary.** Three follow-ups from the owner, scoped exactly: give the
 new collapse/fold switch real styling, ship a pink-shaded version of
@@ -928,7 +928,7 @@ tests, vet, gofmt, JS parse).
 | Padded line-number gutters across numbered views | `e2f78ef` |
 | documentation.md + custom-themes guide | `a7f6a21` |
 | Collapse & fold for hierarchical views | `aac917e` |
-| Styled fold switch & Dark rose theme | *(this commit)* |
+| Styled fold switch & Dark rose theme | `ce944db` |
 
 ### Docs
 | Change | Commit |
@@ -961,7 +961,7 @@ tests, vet, gofmt, JS parse).
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **88 / 88 passed** — 83 at `aac917e`; +5 fold-switch/rose tests at *(this commit)* |
+| Playwright (Chromium) | **88 / 88 passed** — 83 at `aac917e`; +5 fold-switch/rose tests at `ce944db` |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (branch follow-up)
