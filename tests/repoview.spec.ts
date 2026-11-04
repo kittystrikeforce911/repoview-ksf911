@@ -425,6 +425,76 @@ test.describe("Markdown raw/preview toggle", () => {
     await expect(page.locator(".plain-text .plain-line").first()).toBeVisible();
   });
 
+  test("Theme picker switches Light, Dark, Nord and OpenCode colorways", async ({
+    page,
+  }) => {
+    await page.goto("/");
+    await page.locator("#theme-toggle").click();
+    const menu = page.locator("#theme-menu");
+    await expect(menu).toBeVisible();
+    await expect(page.locator(".theme-menu-item")).toHaveCount(4);
+    // Close once so every loop cycle opens the menu from a clean state.
+    await page.keyboard.press("Escape");
+    await expect(menu).toBeHidden();
+
+    const bgs: Record<string, string> = {};
+    for (const [label, theme] of [
+      ["Light", "light"],
+      ["Dark", "dark"],
+      ["Nord", "nord"],
+      ["OpenCode Orng", "opencode"],
+    ]) {
+      // Selecting a theme closes the menu, so re-open it each cycle.
+      await page.locator("#theme-toggle").click();
+      await expect(menu).toBeVisible();
+      await menu.locator(".theme-menu-item", { hasText: label }).click();
+      await expect(menu).toBeHidden();
+      await expect(page.locator("html")).toHaveAttribute("data-theme", theme);
+      expect(
+        await page.evaluate(() => localStorage.getItem("rv-theme")),
+      ).toBe(theme);
+      bgs[theme] = await page.evaluate(() =>
+        getComputedStyle(document.body).backgroundColor,
+      );
+    }
+    // All four colorways render a distinct chrome color.
+    expect(new Set(Object.values(bgs)).size).toBe(4);
+  });
+
+  test("Plain-text reading view follows dark colorways", async ({ page }) => {
+    for (const theme of ["dark", "nord", "opencode"]) {
+      await page.addInitScript(
+        (t) => {
+          localStorage.setItem("rv-theme", t);
+          document.documentElement.setAttribute("data-theme", t);
+        },
+        theme,
+      );
+      await page.goto("/example.txt");
+      await expect(page.locator("pre.plain-text")).toBeVisible();
+      expect(
+        await page.locator("html").getAttribute("data-theme"),
+      ).toBe(theme);
+      const bg = await page.evaluate(() =>
+        getComputedStyle(
+          document.querySelector("pre.plain-text") as Element,
+        ).backgroundColor,
+      );
+      expect(bg).not.toBe("rgb(255, 255, 255)");
+    }
+  });
+
+  test("Code view highlights with theme classes, not inline colors", async ({
+    page,
+  }) => {
+    await page.goto("/sample.go");
+    await expect(page.locator(".source-code pre.chroma")).toBeVisible();
+    expect(
+      await page.locator(".source-code pre.chroma span[class]").count(),
+    ).toBeGreaterThan(3);
+    expect(await page.locator(".source-code span[style]").count()).toBe(0);
+  });
+
   test("CSV charts: bar default, type switching and hover titles", async ({ page }) => {
     await page.goto("/colors.csv");
     await page.locator(".view-toggle button", { hasText: "Charts" }).click();

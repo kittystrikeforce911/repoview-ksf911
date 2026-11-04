@@ -16,6 +16,7 @@ I noticed my marketing team, when working with Claude Code and lots of markdown 
 - **CSV filter toolbar** — per-column operators (contains, equals, regex, greater, less, empty), match all or any combination, removable filter chips (click the chip itself) and a live "Showing X of Y rows" count
 - **CSV charts** — a Charts view beside the table with hand-rolled SVG visuals, no dependencies: bar, horizontal bar, stacked bar, line, area, scatter, pie and donut; choose the X column, numeric measure and aggregation (sum, avg, min, max, count), group by a colour column where it makes sense, and charts refresh live with the active row filters
 - **XML viewer** — `.xml` files get Tree/Table/Code views with client-side element filtering via tag globs (`book*`), attribute matchers (`book@id=x`), text search and XPath (`//book[@genre='web']`)
+- **Four-way theming** — Light (Obsidian palette), Dark (Catppuccin-inspired), Nord and OpenCode Orng colorways from a picker in the header; persisted per browser, with themed syntax-highlighted code views
 - **Fuzzy file search** — press `t` to open a "Go to file" modal with fuzzy matching
 - **Live reload** — WebSocket-based file watching with fsnotify; changes appear instantly
 - **Single binary** — all HTML/CSS/JS embedded via `go:embed`, no external dependencies at runtime

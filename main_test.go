@@ -520,6 +520,31 @@ func TestHandleFile_PlainText(t *testing.T) {
 	}
 }
 
+// TestRenderCodeClassedTokens checks that code views use theme classes
+// instead of inline colors, so dark themes can restyle every token.
+func TestRenderCodeClassedTokens(t *testing.T) {
+	setRoot(t, "testdata")
+
+	req := httptest.NewRequest("GET", "/api/file?path=sample.go", nil)
+	w := httptest.NewRecorder()
+	handleFile(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("expected 200, got %d", w.Code)
+	}
+
+	var resp FileResponse
+	json.NewDecoder(w.Body).Decode(&resp)
+
+	if !strings.Contains(resp.Content, `<span class="`) {
+		t.Error("expected syntax-highlight <span> tokens with class attributes")
+	}
+	if strings.Contains(resp.Content, `style="color:`) ||
+		strings.Contains(resp.Content, `style="background-color:`) {
+		t.Error("inline color styles must not appear; tokens must be class-based")
+	}
+}
+
 func TestHandleFile_NotFound(t *testing.T) {
 	setRoot(t, "testdata")
 

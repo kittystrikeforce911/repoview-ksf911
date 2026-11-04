@@ -684,6 +684,9 @@ func renderPlainText(w io.Writer, data []byte) {
 
 // renderCode syntax-highlights code using chroma and writes HTML to w.
 // Falls back to plain <pre> on any error or when no lexer matches.
+// Output uses class-based tokens (no inline colors) so the frontend CSS
+// can theme the tokens per color scheme; the style argument only decides
+// class variants and stays theme-independent.
 func renderCode(w io.Writer, data []byte, filename string) {
 	lexer := lexers.Match(filename)
 	if lexer == nil {
@@ -695,7 +698,10 @@ func renderCode(w io.Writer, data []byte, filename string) {
 	lexer = chroma.Coalesce(lexer)
 
 	style := styles.Get("github")
-	formatter := chromahtml.New(chromahtml.WithLineNumbers(true))
+	formatter := chromahtml.New(
+		chromahtml.WithClasses(true),
+		chromahtml.WithLineNumbers(true),
+	)
 
 	iterator, err := lexer.Tokenise(nil, string(data))
 	if err != nil {
