@@ -1,0 +1,135 @@
+# RepoView — work-in-progress notes / handover
+
+> Temporal scratch file: keep writing in-progress state here (next changes,
+> found bugs, environment notes). Last updated: 2026-11-04 (device handover
+> to a minimal Debian install).
+
+## Branch state (as of handover)
+
+- Branch `feat/viewer-upgrade`, based on `master` (v0.17.0)
+- **12 commits, ALL UNPUSHED** — the ZIP includes `.git`, so after switching
+  devices run (from the extracted repo):
+  ```bash
+  git log --oneline -12     # verify history came along
+  git push origin feat/viewer-upgrade
+  ```
+- Commit list (newest last):
+  | Commit | Title |
+  |--------|-------|
+  | `c7edfaf` | fix(api): harden file server and websocket |
+  | `3133a95` | docs(api): refresh API reference table |
+  | `abcceb0` | feat(view): read file as plain text, markdown or csv |
+  | `34fec62` | fix(ui): dedicated plain-text reading view for .txt |
+  | `4912f7d` | feat(csv): advanced column filter toolbar |
+  | `a283525` | style: gofmt update_test.go |
+  | `d5d5d3c` | feat(xml): xml viewer with tree, table and filters |
+  | `0e33fb0` | feat(csv): SVG chart engine + core charts |
+  | `1be8d7c` | docs: refresh README features and add unified CHANGES.md |
+  | `a507635` | feat(theme): four-way color system (Light/Dark/Nord/OpenCode Orng) |
+  | `d8c7919` | ci(tests): Playwright webServer runs without mise; 60 s boot timeout |
+  | *(this docs commit)* | docs: handover notes and theme entry |
+- Last verified state: `go build` ✅ · `go vet` ✅ · `gofmt` clean ✅ ·
+  `go test ./...` ok ✅ · **Playwright 62/62 passed** ✅
+- Full change record: see `CHANGES.md` (per-commit detail + cross-index).
+  Keep `CHANGES.md` updated with each new commit; `CHANGELOG.md` stays the
+  per-commit `[Unreleased]` entry log.
+
+## NEXT CHANGES (agreed roadmap, in order)
+
+1. **CSV column sorting (click header) + descriptive labels**
+   - Click a `<th>` to sort: cycle ascending → descending → none, on the
+     filtered row set (`applyFilters` in `static/index.html`); numeric-aware
+     comparator; indicator glyph (▲/▼) + `aria-sort` on the active column,
+     sort resets per session (never on the server-rendered pristine table).
+   - Descriptive labels: `aria-label` + `title` on the filter toolbar
+     controls (column/operator/value/add/clear/match-mode), sort headers and
+     chart config selects; small visible hint labels in the toolbar.
+   - Tests: Playwright (order flips on colors.csv `rating`/`weight`, label
+     assertions); update `applyFilters` to client-render when sort is set.
+2. **Wiki Markdown in "Read file as"** (backend + frontend)
+   - `main.go`: accept `as=wiki` in the override switch; make
+     `renderMarkdown(w, data, allowWiki bool)`; `as=wiki` forces
+     `preprocessWikiLinks(body)` + `goldmark.WithUnsafe()` even outside an
+     `.obsidian` vault (vault detection stays for `.md` files).
+   - Frontend: add `{ as: "wiki", label: "Wiki Markdown" }` to
+     `populateReadAsMenu` (`static/index.html`); the md render path already
+     calls `resolveWikiLinks`, so placeholder `<a class="wiki-link">`
+     anchors resolve automatically.
+   - Tests: Go (as=wiki on non-vault dir → wiki anchors, as=md → none),
+     Playwright with a new `testdata/wiki-notes.txt` fixture (`[[hello]]`
+     resolves, broken target shows broken class); README API row
+     `&as=txt|md|csv|xml|wiki`.
+3. **Cross-device access on `--host 0.0.0.0`**
+   - Status: server-side `checkSameOrigin` compares `Origin` host to the
+     request `Host` exactly, so a browser on another device reaching the
+     server via its LAN IP already passes; only truly foreign hosts are
+     rejected. Frontend uses relative URLs + `location.host` for the WS.
+   - TODO: extend `TestCheckSameOrigin` with device cases (IPv4 `192.168.x.x:port`
+     pairing pass, differing host fail, scheme-insensitive pass); README: WS
+     row text + a short "Access from other devices" section.
+4. **README: MIT license summary table (from choosealicense.com)**
+   - Permissions: commercial use, modification, distribution, private use;
+     Limitations: liability, warranty; Conditions: license and copyright
+     notice. Short table under the existing `## License` section + link.
+5. **Stage 7b** — chart palettes / hover-polish; **Stage 7c** — histogram,
+   bubble, heatmap chart types; **Stage 8** — `stageshow` docs screenshots +
+   create the PR for `feat/viewer-upgrade`.
+
+## BUGS / open questions
+
+- **"Dark UI renders .txt as white background" (reported by user)** —
+  NOT reproducible on this build with any flow (``/example.txt``,
+  `?as=txt`, sidebar click after dark toggle, `UPPERCASE.TXT`, dark OS
+  preference). Mitigations shipped in `a507635`: explicit theme backgrounds
+  on `pre.plain-text`/`.source-code`, class-based chroma tokens. If it still
+  reproduces on the user's device, prime suspect = stale cached
+  index.html from an older binary → hard-reload (Ctrl+F5) / restart the
+  server. Record further findings here if it recurs.
+- **Mermaid loads from jsdelivr CDN** — on an offline/air-gapped
+  environment diagram rendering will fail (JS console error, md text still
+  readable). Candidate follow-up: vendor the script or lazy-load with a
+  fallback notice.
+- **Playwright webServer** — FIXED in `d8c7919`: the config used to invoke
+  `mise x go` (fails without mise) with a 15 s timeout that a cold compile
+  could exceed. It now uses plain `go run ..` on every platform with a 60 s
+  boot timeout, and reopened the fallback: build + serve the binary
+  yourself (`go build -o /tmp/opencode/repoview .`, then
+  `/tmp/opencode/repoview -port 3123 -no-browser testdata`) — the suite
+  reuses the listening server (`reuseExistingServer` when not CI). Free a
+  stuck port with `fuser -k 3123/tcp`, never `pkill -f repoview`.
+
+## Environment (this machine → minimal Debian)
+
+- This machine runs tools via **mise** shims in `~/.local/bin`
+  (`go`, `node`, `npx`). A stock shell may lack them → first command line:
+  `export PATH="$HOME/.local/bin:$PATH"`.
+- On the new minimal Debian device, install directly (no mise) — now
+  documented step-by-step in `README.md` (Development → *Setting up a
+  minimal Debian machine*):
+  - `sudo apt-get install -y curl git ca-certificates build-essential unzip`
+  - Go: untar the current GNU/Linux tarball into `/usr/local/go`
+    (or `~/.local/go`), add `<dir>/go/bin` to PATH
+  - Node.js LTS: untar into `~/.local/opt/node-*`, add its `bin` to PATH
+  - Frontend tests: `cd tests && npm ci && npx playwright install --with-deps chromium`
+    (needs apt deps — one-time; without them, backend-only gates still run)
+- Per-command gates (same on every machine):
+  ```bash
+  go build -o repoview . && go vet ./... && go test ./... && gofmt -l .
+  cd tests && npx playwright test
+  ```
+- Operational quirks to remember:
+  - Free the test port with `fuser -k 3123/tcp` — NEVER `pkill -f repoview`
+    (it self-kills the shell).
+  - Playwright tests are rooted at `tests/` and serve testdata on :3123.
+  - `page.evaluate(fn)` cannot close over test-scope variables — pass
+    explicit args instead.
+  - Run servers with `--no-browser` for CI/test use.
+
+## Handover package
+
+- `repoview-handover-YYYYMMDD.zip` (Desktop, next to this repo) contains the
+  full repo INCLUDING `.git` history; excludes `tests/node_modules`,
+  `tests/test-results`, `tests/playwright-report` (rebuild with npm ci /
+  run the suite).
+- After unzip on the new device: verify with the gates above, then
+  `git push origin feat/viewer-upgrade`.

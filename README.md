@@ -127,6 +127,53 @@ cd tests && npm test
 go build -o repoview .
 ```
 
+### Setting up a minimal Debian machine
+
+The branch is developed against a full toolchain. A fresh **minimal Debian**
+install has none of it — no version managers, no distribution Go — so set it
+up manually:
+
+```bash
+# Base tooling
+sudo apt-get update && sudo apt-get install -y \
+    git curl ca-certificates build-essential unzip xz-utils
+
+# Go — official tarball (set GOVER to the current release from go.dev/dl)
+GOVER=1.25.6
+curl -L "https://go.dev/dl/go${GOVER}.linux-amd64.tar.gz" \
+    | sudo tar -C /usr/local -xz
+echo 'export PATH=$PATH:/usr/local/go/bin:$HOME/go/bin' >> ~/.profile
+
+# Node.js LTS — official tarball into ~/.local/opt (current from nodejs.org)
+NODEVER=v22.21.1
+mkdir -p ~/.local/opt
+curl -L "https://nodejs.org/dist/${NODEVER}/node-${NODEVER}-linux-x64.tar.xz" \
+    | tar -C ~/.local/opt -xJ
+echo "export PATH=$PATH:$HOME/.local/opt/node-${NODEVER}-linux-x64/bin" >> ~/.profile
+```
+
+Then in a new checkout, and for every gate run:
+
+```bash
+# Backend gate (no Node needed at all)
+go build -o repoview . && go vet ./... && go test ./... && gofmt -l .
+
+# Frontend / Playwright (one-time setup)
+cd tests && npm ci
+npx playwright install --with-deps chromium
+
+# Frontend gate
+npm test
+```
+
+Notes:
+- Playwright's webServer boots `go run ..` on port 3123 with a 60 s timeout.
+  A cold compile can still be exceeded: build and serve the binary yourself
+  (`go build -o /tmp/repoview .. && /tmp/repoview -port 3123 -no-browser
+  ../testdata`) and the suite reuses the already-running server.
+- The plain-text view of `static/index.html` re-embeds on every `go build`;
+  no Node step is required for backend-only work.
+
 ### Releasing
 
 ```bash

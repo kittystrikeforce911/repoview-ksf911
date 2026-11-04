@@ -2,9 +2,11 @@
 
 Unified change record for the `feat/viewer-upgrade` branch: hardening of the
 file-server API, three new reading experiences (re-rendering menu, plain-text
-view, XML viewer) and a full CSV data layer (filter toolbar + SVG charts).
+view, XML viewer), a full CSV data layer (filter toolbar + SVG charts), a
+four-way theme system (Light / Dark / Nord / OpenCode Orng) and workflow
+hardening for the device handover.
 
-- Base: `master` (v0.17.0) · Branch: `feat/viewer-upgrade` · 8 commits, all unpushed
+- Base: `master` (v0.17.0) · Branch: `feat/viewer-upgrade` · 12 commits, all unpushed
 - Rule: zero new dependencies; all charts are hand-rolled SVG; every commit builds, passes `go vet`, `go test ./...` and the full Playwright suite, and carries its own `[Unreleased]` entries in `CHANGELOG.md`
 
 ## Index
@@ -19,6 +21,10 @@ view, XML viewer) and a full CSV data layer (filter toolbar + SVG charts).
 | 6 | `a283525` | style | gofmt `update_test.go` | Housekeeping |
 | 7 | `d5d5d3c` | feat | XML viewer with tree, table and filters | XML viewer |
 | 8 | `0e33fb0` | feat | SVG chart engine + core charts | CSV charts |
+| 9 | `1be8d7c` | docs | refresh README features and add unified CHANGES.md | Docs |
+| 10 | `a507635` | feat | four-way color system (Light/Dark/Nord/OpenCode Orng) | Themes |
+| 11 | `d8c7919` | ci | Playwright webServer runs without mise; 60 s boot timeout | Tooling |
+| 12 | *(this commit)* | docs | handover notes and theme entry | Handover |
 
 ---
 
@@ -255,6 +261,126 @@ across types in the probe run.
 
 ---
 
+## 9. `1be8d7c` — docs: refresh README features and add unified CHANGES.md
+
+**Summary.** README `## Features` rewritten to full coverage of what the
+branch ships (read-as menu, plain-text view, CSV filter toolbar, XML viewer,
+SVG chart engine) and `CHANGES.md` introduced — the unified per-commit
+change record (this file).
+
+### Added
+- `CHANGES.md` (+311): index, per-commit sections, cross-index by area,
+  verification state, deferred stages
+
+### Changed
+- README feature list to compact one-line bullets; install and usage untouched
+
+### Files
+`CHANGES.md` (new, +311), `README.md` (+7/−1)
+
+### Tests
+Docs-only commit; no test impact.
+
+---
+
+## 10. `a507635` — feat(theme): four-way color system (Light/Dark/Nord/OpenCode Orng)
+
+**Summary.** The binary dark/light toggle becomes a theme picker in the
+breadcrumb bar: an ARIA `menu` of `menuitemradio` items with two-tone
+swatches and a ✓ on the active colorway, offering Light = Obsidian's
+default-light palette (`#ffffff` surfaces, `#705dcf` accent, `#222222`
+text), Dark = the existing Catppuccin-inspired scheme, and the two
+"colored" slots filled with named real palettes — Nord (official palette)
+and OpenCode "Orng" (`#0a0a0a` surface, `#eeeeee` ink, `#ec5b2b` orange,
+values from opencode.ai/theme). Palette selection follows the "unslop"
+design method — named real palettes rather than invented defaults — as
+noted in `CHANGELOG.md`.
+
+### Added
+- Theme menu UI: `#theme-menu-wrap` / `#theme-menu` (`hidden`, populated on
+  open), selecting a colorway closes it, Escape and outside-click close it;
+  active item highlighted via `--rv-bg-active`
+- Theme persistence: `rv-theme` localStorage validated against the four
+  known ids; OS `prefers-color-scheme` drives the choice while unset and
+  keeps updating until the user picks explicitly
+- Themed syntax highlighting: chroma switched to
+  `chromahtml.WithClasses(true)`; CSS token families (`k*`, `s*`, `m*`,
+  `c*`, `nf/fm`, `nc/no/nb/nx`, `na/nt/nd/nv`, `o/ow/p`, `err`, line-number
+  cells) map to per-theme `--rv-code-*` variables defined in every theme
+  block
+- Explicit themed surfaces on `pre.plain-text` and `.source-code`
+  (background + text color) so dark colorways render deterministically —
+  mitigation for a user-reported "dark UI renders .txt as white" that never
+  reproduced on this build (stale-cache hypothesis recorded in `TODO.md`)
+- Mermaid renders `theme: 'dark'` for every non-light colorway (head
+  `initialize` compares `!= 'light'`; runtime `updateMermaidTheme` re-renders
+  processed diagrams from `data-original`)
+
+### Fixed
+- Code views no longer carry light-mode inline colors, so dark colorways
+  restyle every token
+
+### Files
+`static/index.html` (+380/−53), `main.go` (+7/−1), `main_test.go` (+25),
+`tests/repoview.spec.ts` (+70), `CHANGELOG.md` (+3), `README.md` (+1)
+
+### Tests
+Backend: `TestRenderCodeClassedTokens` demands `<span class=` tokens and
+zero inline `style="color:` / `style="background-color:`; the plain-text
+test keeps asserting "chroma" absence (`.txt` never reaches the formatter).
+Playwright 59 → 62 (+3): theme-menu cycling across all four colorways
+(distinct body background, `data-theme` and localStorage per colorway,
+Escape-close), dark colorway `.txt` regression (background never
+`rgb(255, 255, 255)`), and class-based code-view highlighting.
+
+---
+
+## 11. `d8c7919` — ci(tests): Playwright webServer runs without mise; 60 s boot timeout
+
+**Summary.** `tests/playwright.config.ts` invoked `mise x go` for the
+webServer on POSIX systems, which fails on machines without the mise
+toolchain manager — including the incoming minimal Debian device.
+
+### Changed
+- webServer command is plain `go run .. -port 3123 -no-browser ../testdata`
+  on every platform
+- `webServer.timeout` raised 15 s → 60 s to absorb a cold `go run` compile
+- config comment documents the fallback: build and serve the binary
+  yourself; `reuseExistingServer` picks it up
+
+### Files
+`tests/playwright.config.ts` (+6/−4)
+
+### Tests
+Full Playwright re-run with **no pre-started server** so the new command had
+to boot it: 62 / 62 passed.
+
+---
+
+## 12. *(this commit)* — docs: handover notes and theme entry
+
+**Summary.** Device-handover documentation: `CHANGES.md` brought current
+(this file), a minimal-Debian development setup in the README and a temporal
+in-progress file (`TODO.md`) to keep writing state into across the device
+change.
+
+### Added
+- `TODO.md`: branch state table (12 unpushed commits), next-changes queue,
+  bugs/open questions, environment notes, handover-package checklist
+- README `## Development` gains *Setting up a minimal Debian machine*:
+  base apt packages, official Go/Node tarballs, `npm ci` +
+  `npx playwright install --with-deps chromium`, gate notes
+- `CHANGES.md`: index rows 9–12, sections 9–12, cross-index rows,
+  verification state refreshed to 62 / 62
+
+### Files
+`README.md`, `TODO.md` (new), `CHANGES.md`
+
+### Tests
+Docs-only commit; no test impact.
+
+---
+
 ## Cross-index by area
 
 ### Backend — `main.go` / `main_test.go`
@@ -263,6 +389,7 @@ across types in the probe run.
 | `tooLarge` cap (>16 MB), `405` on non-GET, same-origin `/ws` | `c7edfaf` |
 | `as=` renderer override (txt/md/csv/xml) | `abcceb0`, `d5d5d3c` |
 | `isPlainText` flag for `.txt` reading view | `34fec62` |
+| Chroma class-based token formatter (`WithClasses`) | `a507635` |
 | `isXML` / `rawXML` flags | `d5d5d3c` |
 
 ### Frontend — `static/index.html`
@@ -275,19 +402,24 @@ across types in the probe run.
 | XML viewer (tree/table/code + filters) | `d5d5d3c` |
 | SVG chart engine + 8 chart types | `0e33fb0` |
 | Chip body removes filter | `4912f7d` (✕), `0e33fb0` (body) |
+| Four-way theme picker + themed chroma/plain-text CSS | `a507635` |
 
 ### Docs
 | Change | Commit |
 |--------|--------|
 | API reference table refresh | `3133a95`, `abcceb0`, `d5d5d3c` |
-| Feature list: read-as, filters, charts, XML | `abcceb0`, `d5d5d3c`, `0e33fb0` (this docs commit) |
+| Feature list: read-as, filters, charts, XML; `CHANGES.md` created | `1be8d7c` |
+| README feature bullet for theming | `a507635` |
+| Debian dev-env setup, `TODO.md` handover notes, this file brought current | *(this docs commit)* |
 | `CHANGELOG.md` `[Unreleased]` entries per commit | all feature/fix commits |
 
 ### Tests & fixtures
 | Change | Commit |
 |--------|--------|
 | Backend hardening + as/xml/override tests | `c7edfaf`, `abcceb0`, `34fec62`, `d5d5d3c` |
-| `tests/repoview.spec.ts` 43 → 59 tests | filter/x txt/xml/charts commits |
+| `tests/repoview.spec.ts` 43 → 59 → 62 tests | filter/x txt/xml/charts commits, then theme commits |
+| Theme suite (menu cycle, dark `.txt` regression, classed code view) | `a507635` |
+| Playwright webServer without mise; 60 s boot timeout | `d8c7919` |
 | Fixtures: `testdata/colors.csv`, `testdata/sample.xml` | `4912f7d`, `d5d5d3c` |
 
 ---
@@ -300,7 +432,7 @@ across types in the probe run.
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
 | `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **59 / 59 passed** |
+| Playwright (Chromium) | **62 / 62 passed** — re-verified at `d8c7919` with a cold webServer boot |
 | Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (not in this branch yet)
