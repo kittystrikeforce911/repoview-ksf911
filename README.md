@@ -425,6 +425,19 @@ Notes:
 
 ### Releasing
 
+Two helpers share the release work — one cuts the version and tags it, one
+builds the assets locally. Publishing itself stays with
+[.github/workflows/release.yml](.github/workflows/release.yml), which fires
+on every `v*` tag.
+
+**`release.sh` is the release clerk.** It fetches the tags, computes the
+next version from an argument (default: patch), rewrites the
+`CHANGELOG.md` header for this version, commits, and creates an annotated
+tag whose message embeds this version's changelog entries — the release
+workflow later re-extracts exactly that text as the GitHub release body.
+It finishes by pushing the commit and the tag to `origin`; it compiles
+nothing itself.
+
 ```bash
 ./release.sh          # bump patch: v0.1.0 → v0.1.1
 ./release.sh minor    # bump minor: v0.1.0 → v0.2.0
@@ -432,9 +445,30 @@ Notes:
 ./release.sh 2.0.0    # explicit version
 ```
 
-This updates `CHANGELOG.md`, commits, tags, and pushes the commit and tag to
-the fork (`git push` + `git push fork <tag>`). GitHub Actions builds the
-release binaries from the tagged commit.
+**`go-releaser.sh` is the local builder.** It runs the workflow's plain
+`GOOS={OS} GOARCH={ARCH} go build .` loop on your own machine and writes
+the release assets to `dist/` — nothing more: it never commits, tags, or
+pushes. It stamps `main.version` via `-ldflags` like CI does, from the
+latest `v*` tag (an explicit argument wins, `dev` is the fallback when no
+tag exists), then rebuilds `dist/` from scratch. Handy for trying the real
+release binaries before cutting a tag.
+
+```bash
+./go-releaser.sh        # version = latest v* tag, or "dev"
+./go-releaser.sh 0.0.5  # explicit version stamp
+```
+
+Both keep the artifact naming the installers hard-code — `install.sh` and
+`install.ps1` download `releases/latest/download/<name>`, so names are a
+contract, not a convention:
+
+| GOOS × GOARCH                    | Release asset                  | Archive contains |
+|----------------------------------|--------------------------------|------------------|
+| linux, darwin × amd64, arm64     | `repoview-{os}-{arch}.tar.gz`  | `repoview`       |
+| windows × amd64, arm64           | `repoview-windows-{arch}.zip`  | `repoview.exe`   |
+
+A tag fires Actions, the six assets land on the release page, and the
+Install one-liners pull exactly these names.
 
 ### Project Structure
 
@@ -449,6 +483,7 @@ testdata/              # Sample files used by tests
 install.sh/.ps1        # Release asset installers (macOS/Linux, Windows)
 uninstall.sh/.ps1      # Removal helpers mirroring the installer targets
 release.sh             # Version bump + tag + push helper
+go-releaser.sh         # Local cross-compile of the release assets (dist/)
 CHANGES.md             # Per-commit engineering record (this branch)
 CHANGELOG.md           # Per-release user-facing notes
 ```

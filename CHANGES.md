@@ -41,6 +41,7 @@ hardening for the device handover.
 | 26 | `5fb96c9` | docs | re-film README stills, outdated-GIF note, public-repo notes | Docs |
 | 27 | `4800b3e` | feat | uninstall.sh and uninstall.ps1 | Installers |
 | 28 | `f57da10` | docs | complex charts still + Files icon beside the title | Docs |
+| 29 | `pending` | feat | complete go-releaser.sh + README releasing analysis | Releasing |
 
 ---
 
@@ -1028,6 +1029,63 @@ mark.
   all other buckets render with no eligible colour keys. Scene health
   came from `category` (few values, shared across buckets). If a richer
   fixture ever lands, the cap is the spot to revisit.
+
+---
+
+## 29. feat(bash): complete go-releaser.sh and README releasing analysis
+
+**Summary.** After four CI-driven releases (v0.0.1–v0.0.4), the owner
+quick-fixed `release.sh` (tag push retargeted `fork` → `origin`) and laid
+down an eight-line `go-releaser.sh` skeleton — a "golang builder conf"
+banner with no body — in `722b9df`, with the brief: complete it following
+the simple structure of `GOOS={OS} GOARCH={ARCH} go build .`, keep the
+naming compatible with the install.* files, and give the README's
+Development section a short analysis of both releasers. No Go code
+changed; everything lives in the bash tooling and the docs.
+
+### Added
+- `go-releaser.sh` completed on the owner's banner skeleton:
+  `set -euo pipefail`; version stamp is an explicit argument, else the
+  latest `v*` tag (`git tag -l 'v*' | sort -V | tail -n1`), else `dev`,
+  piped through `-ldflags "-X main.version=…"` exactly like CI; the
+  six-target matrix — darwin/linux × amd64/arm64 packaging a top-level
+  `repoview` into `repoview-{os}-{arch}.tar.gz`, windows × amd64/arm64
+  packaging a top-level `repoview.exe` into
+  `repoview-windows-{arch}.zip` — built into a freshly wiped `dist/`;
+  the temp binary is removed after each archive so only bundles remain;
+  a trailing `ls -la dist/` closes the run. It never commits, tags or
+  pushes — that is `release.sh` + CI territory
+- README's *Releasing* section rewritten as the two-helper analysis:
+  `release.sh` the release clerk (fetch tags, semver bump from an
+  argument, changelog rewrite, annotated tag embedding this version's
+  notes, push commit + tag to `origin`, builds nothing) versus
+  `go-releaser.sh` the local builder (same loop, same stamping, `dist/`,
+  no git); a naming-contract table ties both to
+  `install.sh`/`install.ps1`'s `releases/latest/download/` URLs;
+  project-structure row added
+- `.gitignore`: `dist/` under the Binary section, so the builder's
+  output never pollutes `git status`
+
+### Fixed
+- README still said `release.sh` "pushes the commit and tag to the fork
+  (`git push` + `git push fork <tag>`)" — stale since `722b9df`
+  retargeted the tag push to `origin`; the new analysis describes the
+  current behavior
+
+### Craft notes
+- The `zip` CLI is not part of the base toolchain (the release workflow
+  still uses it — ubuntu-latest ships it), so the windows pair is
+  packaged with stdlib `python3 -m zipfile -c`, producing the same
+  archive shape CI's `zip` step does: a single top-level `repoview.exe`
+- Verification: `bash -n` green, then a full run — six assets under
+  `dist/` with the installer-exact names, every tarball containing
+  exactly top-level `repoview`, every zip exactly `repoview.exe`, and
+  the linux/amd64 bundle reporting `repoview v0.0.4` via `--version`
+  (tag-stamped by the latest tag, matching CI's `GITHUB_REF_NAME#v` strip)
+- Cross-compile cost: each GOOS/GOARCH pair compiles the standard
+  library cold on this device — a full run can outlast a typical dev
+  loop, but it is resumable: the Go build cache keeps finished packages,
+  and the script merely rebuilds `dist/`, never the cache
 
 ---
 
