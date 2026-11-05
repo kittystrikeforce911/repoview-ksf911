@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+
+## [v0.0.1] - 2026-11-05
+
 - [changed] `colors.csv` charts still re-staged as a more complex graph — a bar plot of summed weight per colour name, tinted per category — and the README title now carries the web UI's `Files` octicon (`docs/files-icon.svg`)
 - [added] Uninstall scripts: `uninstall.sh` removes the user-installed binary (and any pending self-update leftover) and RepoView's update state, `uninstall.ps1` does the same on Windows and also drops the install directory from the user PATH if it was added; both mirror the installer paths and the update-state layout, pinned together by a Go contract test
 
