@@ -3,6 +3,9 @@
 ## [Unreleased]
 
 
+## [v0.0.2] - 2026-11-05
+
+
 ## [v0.0.1] - 2026-11-05
 
 - [changed] `colors.csv` charts still re-staged as a more complex graph — a bar plot of summed weight per colour name, tinted per category — and the README title now carries the web UI's `Files` octicon (`docs/files-icon.svg`)
