@@ -41,7 +41,7 @@ hardening for the device handover.
 | 26 | `5fb96c9` | docs | re-film README stills, outdated-GIF note, public-repo notes | Docs |
 | 27 | `4800b3e` | feat | uninstall.sh and uninstall.ps1 | Installers |
 | 28 | `f57da10` | docs | complex charts still + Files icon beside the title | Docs |
-| 29 | `pending` | feat | complete go-releaser.sh + README releasing analysis | Releasing |
+| 29 | `754a732` | feat | complete go-releaser.sh + README releasing analysis | Releasing |
 
 ---
 
@@ -1032,7 +1032,7 @@ mark.
 
 ---
 
-## 29. feat(bash): complete go-releaser.sh and README releasing analysis
+## 29. `754a732` — feat(bash): complete go-releaser.sh and README releasing analysis
 
 **Summary.** After four CI-driven releases (v0.0.1–v0.0.4), the owner
 quick-fixed `release.sh` (tag push retargeted `fork` → `origin`) and laid
