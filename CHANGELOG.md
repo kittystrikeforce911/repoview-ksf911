@@ -2,6 +2,9 @@
 
 ## [Unreleased]
 
+
+## [v0.0.5] - 2026-11-05
+
 - [added] `go-releaser.sh` completed: a local cross-compiler mirroring the release workflow — an explicit argument sets the version stamp (latest `v*` tag by default, `dev` as fallback), the workflow's GOOS/GOARCH loop writes `dist/repoview-{linux,darwin}-{amd64,arm64}.tar.gz` (top-level `repoview`) and `dist/repoview-windows-{amd64,arm64}.zip` (top-level `repoview.exe`, packaged via python3's stdlib zipfile since the `zip` CLI isn't part of the base toolchain); it rebuilds `dist/` from scratch and never commits, tags or pushes
 - [changed] README's Development → Releasing now carries a short analysis of both releasers — `release.sh` as the version clerk (bump, changelog rewrite, annotated tag embedding the release notes, push) and `go-releaser.sh` as the local builder — plus the naming contract both obey, covering the release-asset names `install.sh`/`install.ps1` hard-code against `releases/latest/download/`; the stale "pushes the tag to the fork" note is corrected to `origin`
 
