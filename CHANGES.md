@@ -42,6 +42,7 @@ hardening for the device handover.
 | 27 | `4800b3e` | feat | uninstall.sh and uninstall.ps1 | Installers |
 | 28 | `f57da10` | docs | complex charts still + Files icon beside the title | Docs |
 | 29 | `754a732` | feat | complete go-releaser.sh + README releasing analysis | Releasing |
+| 30 | `94fc21f` | fix | port upstream update-fix: no 60s cap, 30s idle timeout, progress line | Update checker |
 
 ---
 
@@ -1086,6 +1087,68 @@ changed; everything lives in the bash tooling and the docs.
   library cold on this device — a full run can outlast a typical dev
   loop, but it is resumable: the Go build cache keeps finished packages,
   and the script merely rebuilds `dist/`, never the cache
+
+---
+
+## 30. `94fc21f` — fix(update): don't time out slow downloads; show progress
+
+**Summary.** A port of upstream `nvquanghuy/repoview` `e07fd0e`
+(released there as v0.18.0, PR #16): `repoview update` capped the whole
+download at 60 s (`http.Client.Timeout`), so on a slow link — ~65 KB/s
+for the 7.4 MB tarball — it failed with "context deadline exceeded"
+even though bytes were still arriving. The port applies cleanly because
+the fork's `update.go` diverged from the patch base only in the
+re-homed release-API constant block (`kittystrikeforce911/
+repoview-ksf911`), which the patch never touches; `update.go` and
+`update_test.go` land byte-identical to upstream, verified with a
+whole-file `diff` against `e07fd0e`. Lineage: the port first landed on
+the private local line as `2e705c8` (kept on branch
+`local-line-backup`); after the v0.0.5 cut it was re-landed on top of
+the released line, so its hash moved — this section is the
+authoritative record.
+
+- **No total-time cap.** The one-shot `http.Client{Timeout: 60 * time.Second}`
+  is gone. Connecting (dial + TLS, via a `DefaultTransport` clone) and
+  waiting for response headers stay bounded
+  (`ResponseHeaderTimeout = 30 s`), but the body transfer is guarded by
+  an idle watchdog instead: a `context.WithCancelCause` timer aborts
+  the download only if no bytes arrive for `downloadIdleTimeout`
+  (30 s), re-armed on every successful read by `idleResetReader`. The
+  watchdog's cause is unwrapped via `context.Cause`, so a stall
+  surfaces as `errDownloadStalled` ("no data received for 30s")
+  instead of a generic "context canceled".
+- **Live progress line.** `selfUpdate` takes a `progressOut io.Writer`;
+  `runUpdate` passes `os.Stdout` only when it is a character device
+  (`isTerminal`), so piped or logged output is unchanged. The
+  `progress` writer counts bytes and redraws a single line at most
+  every `progressInterval` (200 ms) — `\r` back to column 0, `\x1b[K`
+  to clear leftovers from a longer line — rendering
+  `3.1 / 7.4 MB (42%)  65 KB/s`: size, percent, and speed, degrading to
+  bytes-so-far when the server sends no Content-Length. `finish()`
+  ends the line and draws nothing at all if zero bytes arrived, so a
+  failed early connect leaves no stray line behind.
+- **Changelog placement.** The two upstream entries sit under the
+  fork's `[Unreleased]` as recorded verbatim; upstream's release cut
+  (`0b7339b`, the `[v0.18.0] - 2026-11-11` header) is deliberately not
+  replicated — the version header belongs to the fork's own next cut
+  (v0.0.6), not to a copy of upstream's numbering.
+
+### Files
+`update.go` (+173/−15), `update_test.go` (+135/−0), `CHANGELOG.md`
+(+2/−0)
+
+### Tests
+Seven upstream tests came over with the patch: slow-but-progressing
+downloads complete (10 × 30 ms chunks against a 100 ms idle window), a
+stalled body aborts with `errDownloadStalled`, a non-200 status
+surfaces in the error, `formatProgress`'s five formatting rows (known
+size, slow link, unknown size, no elapsed time, complete), the 200 ms
+throttle and final-line accounting, `finish()` without data writing
+nothing, and bytes counted end-to-end with the line ending in
+`(100%)`. Full gate battery re-run on the re-landed port: `go build`,
+`go vet ./...`, `gofmt -l .` clean, `go test -count=1 ./...` `ok` —
+Playwright not re-run (no frontend change; the 88/88 state of §24
+stands).
 
 ---
 
