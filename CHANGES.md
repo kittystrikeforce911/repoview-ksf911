@@ -43,6 +43,7 @@ hardening for the device handover.
 | 28 | `f57da10` | docs | complex charts still + Files icon beside the title | Docs |
 | 29 | `754a732` | feat | complete go-releaser.sh + README releasing analysis | Releasing |
 | 30 | `94fc21f` | fix | port upstream update-fix: no 60s cap, 30s idle timeout, progress line | Update checker |
+| 31 | `5914785` | feat | upstream v0.24.2 sync + five OpenCode themes + measured Orng contrast | Sync / Themes |
 
 ---
 
@@ -1152,6 +1153,140 @@ stands).
 
 ---
 
+## 31. `5914785` — feat: upstream v0.24.2 sync + five OpenCode themes + Orng contrast
+
+**Summary.** Two bodies of work landed on top of the v0.0.6 release:
+a full merge of upstream `nvquanghuy/repoview` from v0.18.0 through
+v0.24.2 (26 commits; merge commit `25fcca5`), and a theme extension
+that doubles the picker to ten colorways while moving OpenCode Orng
+onto Dark rose's measured contrast ramp (`5914785`). No release cut:
+both sit under `[Unreleased]`, and the fork's v0.0.x history stays the
+only release history in `CHANGELOG.md` — upstream's numbered releases
+are provenance, not fork releases.
+
+### Upstream sync (merge `25fcca5`)
+
+Ported subsystems: backlinks (`backlinks.go`), full-text search
+(`search.go`), PWA manifest/icons (`pwa.go`, `static/icons/`), folder
+search and contiguous-match ranking, HTML file icon, desktop sidebar
+toggle (`☰` / Cmd-Ctrl-`\`), docx rendering via mammoth.js, password
+login and share links (`auth.go`, `gate.go`, `scope.go`,
+`sharestore.go`, `pages.go`), path-based raw previews (`raw.go`,
+`/_raw/<path>`), sandboxed HTML previews (`preview.go`), markdown URL
+hardening (`markdown_safety.go`), one-click password shares, image/
+video/audio previews over 2 MB, and wiki links in frontmatter.
+
+Only nine files conflicted (~26 hunks); all new upstream subsystems
+auto-merged. Resolutions:
+
+- **AGENTS.md / CLAUDE.md** stay deleted (fork policy).
+- **Server architecture** — adopted upstream's `serverConfigFromEnv`,
+  `newServer`, `scopeOf(r)` and per-request scopes, keeping the fork's
+  `as=` renderer override, `checkSameOrigin` websocket guard and
+  `requireGET` helpers.
+- **File-size model** unified on upstream's `maxRenderSize` (2 MB,
+  now a var so tests can shrink it) plus `sniffBinary`,
+  `IsTooLarge`/`IsBinary`/`MimeType`. The fork's old `TooLarge` and
+  `maxInlineBytes` (16 MB) are gone; media streams from `/_raw/` at
+  any size, text over 2 MB offers a download.
+- **Frontend** keeps the fork's charts, filter toolbar, XML viewer,
+  read-as menu, folds and theme menu, and gains upstream's auth/share
+  dialogs, search overlay, preview iframe plumbing and PWA/sidebar
+  behaviour. The obsolete `data.tooLarge` branch was removed; the
+  `isTooLarge` and `isBinary` branches own the large-file UI.
+- **Tests** keep the fork's theme/fold/gutter suites and upstream's
+  PWA/sidebar/rendering-safety/sharing suites. `maxRenderSize` casts
+  and the new `renderMarkdown(w, data, allowWiki)` signature were
+  reconciled in `hardening_test.go`, `render_security_test.go` and
+  `main_test.go`.
+- **Release identity** unchanged: installers, updater and docs still
+  point at `kittystrikeforce911/repoview-ksf911`.
+
+### Themes (`5914785`)
+
+Five OpenCode palettes join Light/Dark/Dark rose/Nord/OpenCode Orng.
+Each CSS block carries the same **44 `--rv-*` variables** (25 shell,
+9 chroma, 10 chart) and `color-scheme: dark`; each id is registered in
+both the boot allowlist and the picker array with a two-colour swatch.
+
+| id | Label | Base | Accent |
+|---|---|---|---|
+| `rosepine` | Rosé Pine | `#191724` | `#9ccfd8` foam |
+| `aura` | Aura | `#0f0f0f` | `#a277ff` purple |
+| `kanagawa` | Kanagawa | `#1f1f28` | `#7e9cd8` crystal blue |
+| `mercury` | Mercury | `#171721` | `#8da4f5` violet |
+| `monokai` | Monokai | `#272822` | `#66d9ef` cyan |
+
+Palettes were read from OpenCode's own theme assets
+(`packages/tui/src/theme/assets/{rosepine,aura,kanagawa,mercury,monokai}.json`,
+fetched 2026-11-20) and mapped onto the fork's variable contract.
+Deliberate mappings worth recording: Rosé Pine keeps its official
+syntax split (pine keywords, gold strings, iris numbers, foam types);
+Kanagawa's error text uses `waveRed #e46876` rather than `dragonRed`
+(the official error hue is too dark against `sumiInk0`); Mercury keeps
+the theme's translucent `#b4b7c81f` borders.
+
+**Orng contrast fix.** The old Orng ramp was significantly harsher
+than every other dark theme. Dark rose was measured with the WCAG
+2.x relative-luminance formula and the Orng body/secondary/tertiary/
+link colours were re-solved to the same ratios on its `#0a0a0a` base
+(neutral greys for the text ramp, orange blended 33% toward white for
+links). Ratios are measured, not eyeballed:
+
+| Token | Dark rose | Rose ratio | Orng before | Before ratio | Orng now | Now ratio |
+|---|---|---|---|---|---|---|
+| `--rv-text` | `#f2dbdf` | 12.07:1 | `#eeeeee` | 17.06:1 | `#cacaca` | 12.08:1 |
+| `--rv-text-secondary` | `#b896a4` | 6.00:1 | `#a3a3a3` | 7.85:1 | `#8d8d8d` | 5.97:1 |
+| `--rv-text-tertiary` | `#8a6b7b` | 3.38:1 | `#808080` | 5.01:1 | `#656565` | 3.40:1 |
+| `--rv-link` | `#f5a8c6` | 8.54:1 | `#ec5b2b` | 5.75:1 | `#f29171` | 8.55:1 |
+
+`--rv-code-com` and `--rv-code-op` follow the new tertiary/body tones
+so comments and operators don't stay on the old ramp. The brand
+orange (`--rv-border-active`, `--rv-icon-folder`, `--rv-resize-handle`,
+`--rv-chart-1`) is unchanged.
+
+**Header layout.** The merged header put the theme wrap's
+`margin-left: auto` next to the search button's own auto margin, which
+split the free space and left a ~400 px gap in local mode. The theme
+wrap is now the last action in the bar and has no auto margin: search
+pins the whole action group right, the theme toggle sits beside it, and
+the fixed menu remains anchored under the bar (the two Theme-menu
+regression tests still pass).
+
+### Files
+`main.go`, `main_test.go`, `hardening_test.go`,
+`render_security_test.go` (sync resolution); `auth.go`, `auth_test.go`,
+`backlinks.go`, `backlinks_test.go`, `gate.go`, `gate_test.go`,
+`preview.go`, `preview_test.go`, `scope.go`, `search.go`,
+`sharestore.go`, `pages.go`, `pwa.go`, `raw.go`,
+`markdown_safety.go`, `go.mod`, `go.sum`, `static/icons/*`,
+`testdata/*` (upstream subsystems); `static/index.html` (themes +
+merged header); `tests/playwright.config.ts`,
+`tests/repoview.spec.ts`, `tests/sharing.spec.ts`; `README.md`,
+`CHANGELOG.md`, `CHANGES.md`.
+
+### Tests
+- Go: `go build ./...`, `go vet ./...`, `gofmt -l .` clean,
+  `go test -count=1 ./...` → `ok repoview` (109.5 s). The merged suite
+  covers upstream auth/shares/search/backlinks/preview/safety tests
+  plus the fork's API-hardening, renderer and update tests.
+  `TestWebsocket_ConnectionCap` was stabilized in `97743fa`: it now
+  waits for the hub to register the last of the 256 clients before
+  probing the over-cap connection (the upgrade handshake could return
+  before registration, making the test flaky).
+- Playwright (Chromium): **133 / 133 passed** (119 local + 14 auth),
+  including the new ten-theme picker cycle (10 distinct chrome
+  colours), the measured Dark rose/Orng contrast assertion, all nine
+  dark themes in the plain-text regression, and menu-driven PWA
+  `theme-color` / mermaid-safety tests.
+- Frontend parse gate: all 3 inline script blocks compile
+  (`new vm.Script`).
+- The auth project boots a second server on port 3124 with
+  `REPOVIEW_PASSWORD` and a per-run `REPOVIEW_CONFIG_DIR`; both
+  servers are started by the config's `go run ..` webServer entries.
+
+---
+
 ## Cross-index by area
 
 ### Backend — `main.go` / `main_test.go`
@@ -1163,6 +1298,8 @@ stands).
 | Chroma class-based token formatter (`WithClasses`) | `5f65ee0` |
 | `as=wiki` override: force wiki expansion anywhere | `5e4d4a8` |
 | `isXML` / `rawXML` flags | `7dbcf87` |
+| Upstream v0.18.0–v0.24.2 sync: scopes, password login, shares, search, backlinks, previews, PWA | `25fcca5` |
+| Unified size model: `maxRenderSize` (2 MB text cap), `isTooLarge` / `isBinary` / `mimeType` | `25fcca5` |
 
 ### Frontend — `static/index.html`
 | Change | Commit |
@@ -1185,6 +1322,10 @@ stands).
 | documentation.md + custom-themes guide | `633b21f` |
 | Collapse & fold for hierarchical views | `9c02eb1` |
 | Styled fold switch & Dark rose theme | `425d66d` |
+| Merged header: search, share/shares, logout and PWA controls | `25fcca5` |
+| Ten-way theme picker: Rosé Pine, Aura, Kanagawa, Mercury, Monokai | `5914785` |
+| OpenCode Orng contrast re-solved to Dark rose's measured WCAG ratios | `5914785` |
+| Theme toggle is the last bar action, adjacent to search in local mode | `5914785` |
 
 ### Docs
 | Change | Commit |
@@ -1195,6 +1336,8 @@ stands).
 | Debian dev-env setup, `TODO.md` handover notes, this file brought current | `7697b98` |
 | README "Access from other devices" cross-device guide | `bc9208f` |
 | MIT license summary table (choosealicense.com) | `e46f3a7` |
+| README ten-theme table, theme-system references and custom-theme allowlist | `5914785` |
+| `CHANGELOG.md` `[Unreleased]` entries for the sync and themes; `CHANGES.md` §31 | `25fcca5`, `5914785` |
 | `CHANGELOG.md` `[Unreleased]` entries per commit | all feature/fix commits |
 
 ### Tests & fixtures
@@ -1206,6 +1349,10 @@ stands).
 | Sort/label suite + read-as-wiki suite; `wiki-notes.txt` fixture | `a291195` (sort), `5e4d4a8` (wiki) |
 | Playwright webServer without mise; 60 s boot timeout | `4294154` |
 | Fixtures: `testdata/colors.csv`, `testdata/sample.xml` | `338a589`, `7dbcf87` |
+| Upstream PWA, sidebar, rendering-safety and sharing suites merged; auth project on port 3124 | `25fcca5` |
+| Ten-theme picker cycle, measured Dark rose/Orng contrast, nine dark themes in `.txt` regression | `5914785` |
+| Menu-driven PWA `theme-color` / mermaid-safety tests | `5914785` |
+| `TestWebsocket_ConnectionCap` waits for hub registration before over-cap probe | `97743fa` |
 
 ---
 
@@ -1216,9 +1363,9 @@ stands).
 | `go build -o repoview .` | pass |
 | `go vet ./...` | pass |
 | `gofmt -l .` | clean |
-| `go test ./...` | `ok repoview` |
-| Playwright (Chromium) | **88 / 88 passed** — 83 at `9c02eb1`; +5 fold-switch/rose tests at `425d66d` |
-| Frontend script parse gate (`new Function` over all `<script>` blocks) | pass (3 blocks) |
+| `go test -count=1 ./...` | `ok repoview` (≈108 s) at `5914785` |
+| Playwright (Chromium) | **133 / 133 passed** — 119 local + 14 auth at `5914785`; was 88 / 88 at `9c02eb1` |
+| Frontend script parse gate (`new vm.Script` over all `<script>` blocks) | pass (3 blocks) |
 
 ## Deferred (branch follow-up)
 
