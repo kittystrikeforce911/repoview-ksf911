@@ -208,6 +208,16 @@ func TestWebsocket_ConnectionCap(t *testing.T) {
 		}
 		conns = append(conns, c)
 	}
+	// Registration happens on the server after the upgrade handshake, so
+	// the last Dial can return before the hub reaches the cap. Wait for it
+	// rather than racing the over-cap probe.
+	deadline := time.Now().Add(2 * time.Second)
+	for app.hub.count() < maxWSClients && time.Now().Before(deadline) {
+		time.Sleep(10 * time.Millisecond)
+	}
+	if n := app.hub.count(); n != maxWSClients {
+		t.Fatalf("hub clients = %d, want %d", n, maxWSClients)
+	}
 	if _, resp, err := websocket.DefaultDialer.Dial(wsURL, nil); err == nil || resp == nil || resp.StatusCode != http.StatusServiceUnavailable {
 		t.Fatalf("connection over the cap: err=%v resp=%v", err, resp)
 	}
