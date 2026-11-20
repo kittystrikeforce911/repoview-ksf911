@@ -64,7 +64,7 @@ show the fold UI holds up under a tinted theme.
 
 - **GitHub-style UI** — familiar layout with resizable sidebar, breadcrumb navigation, and file tree
 - **Markdown rendering** — GitHub-Flavored Markdown via goldmark (tables, task lists, code blocks)
-- **Five-way theming** — Light (Obsidian palette), Dark (Catppuccin-inspired), Dark rose (pink-shaded Dark), Nord and OpenCode Orng colorways from a picker in the header, with theme-aware code tokens and chart palettes; the choice persists per browser. Add your own theme per [Theming & custom themes](#theming--custom-themes)
+- **Ten-way theming** — Light (Obsidian palette), Dark (Catppuccin-inspired), Dark rose (pink-shaded Dark), Nord, OpenCode Orng, and the OpenCode Rosé Pine / Aura / Kanagawa / Mercury / Monokai colorways from a picker in the header, with theme-aware code tokens and chart palettes; the choice persists per browser. Add your own theme per [Theming & custom themes](#theming--custom-themes)
 - **Read file as** — re-render any text file as plain text, Markdown, Wiki Markdown (Obsidian wiki links expand even outside a vault), a CSV table, or XML from a dropdown in the file header; plain `.txt` files open in a clean reading view with soft-wrap and line-number toggles
 - **CSV filter toolbar** — per-column operators (contains, equals, regex, greater, less, empty), match all or any combination, removable filter chips (click the chip itself) and a live "Showing X of Y rows" count
 - **CSV column sorting** — click a table header to cycle ascending → descending → off, numeric-aware (weights sort as numbers), `aria-sort` state, and every filter/sort/chart control carries a descriptive label + tooltip
@@ -196,15 +196,20 @@ send no `Origin` header are unaffected.
 
 ## Theming & custom themes
 
-RepoView ships five built-in themes
+RepoView ships ten built-in themes
 
 | Nickname | Notes | Source |
 | ---: | --- | --- |
 | Light | Harsh on the eyes; It's a light theme by nature. | Obsidian's default light |
 | Dark | Recommended for daily and prolonged usage. | Catppuccin-based. From the original repository |
-| Dark Rose | A pink take on the Dark theme. Recommended for one-shot sessions | Dark theme |
+| Dark rose | A pink take on the Dark theme. Recommended for one-shot sessions | Dark theme |
 | Nord | Yet another Nord theme. Alternative to Dark | Official ramp |
-| OpenCode Orng | The contrast can have negative impact in long lasting sessions. Very industrial color combination | - |
+| OpenCode Orng | Industrial neutral/orange colorway; its text ramp is tuned to Dark rose's measured contrast ratios | OpenCode "Orng" |
+| Rosé Pine | Soft rose/mauve surfaces with foam/iris accents. Comfortable for long sessions | OpenCode "rosepine" |
+| Aura | Purple/cyan neon on near-black, for a vivid low-light look | OpenCode "aura" |
+| Kanagawa | Ink-wash blues and warm parchment ink | OpenCode "kanagawa" |
+| Mercury | Quiet neutral slate with a violet accent | OpenCode "mercury" |
+| Monokai | The classic high-energy editor palette | OpenCode "monokai" |
 
 > [!TIP] 
 > Everything is CSS-variable driven and client-side; the server never hard-codes a color.
@@ -213,9 +218,9 @@ RepoView ships five built-in themes
 
 | Piece | Where (`static/index.html` unless noted) | What it does |
 |---|---|---|
-| `[data-theme="…"]` blocks | lines ~10, ~60, ~112, ~163, ~215 | Five blocks × **44 `--rv-*` variables each** — page shell colors, 9 chroma token colors, 10 chart series colors |
-| Boot IIFE | ~2366–2376 | Reads `localStorage("rv-theme")` (validated against the allowlist), falls back to `prefers-color-scheme` (dark → Dark, else Light), sets `data-theme` on `<html>` before first paint — no flash |
-| Theme picker | `THEMES` array ~2499 + `setTheme()` / `renderThemeMenu()` ~2520+ | Builds the menu (id, label, two-color swatch chips); switching sets the attribute, persists to `localStorage`, and remaps Mermaid (any non-`light` id renders as `dark`) |
+| `[data-theme="…"]` blocks | top of `<style>` (~15–525) | Ten blocks × **44 `--rv-*` variables each** — page shell colors, 9 chroma token colors, 10 chart series colors |
+| Boot IIFE | ~3133 | Reads `localStorage("rv-theme")` (validated against the allowlist), falls back to `prefers-color-scheme` (dark → Dark, else Light), sets `data-theme` on `<html>` before first paint — no flash |
+| Theme picker | `THEMES` array ~3393 + `setTheme()` / `renderThemeMenu()` ~3460+ | Builds the menu (id, label, two-color swatch chips); switching sets the attribute, persists to `localStorage`, syncs the browser theme color, and remaps Mermaid (any non-`light` id renders as `dark`) |
 | Chroma code tokens | `main.go:710–712` | The file server emits **class names only** (`chromahtml.WithClasses(true)`, `WithLineNumbers(true)`, inline `.ln` variant) — token colors resolve through `--rv-code-*`, so one var block restyles every lexed file type |
 | Charts | SVG chart engine | Series fills are written as `style="fill: var(--rv-chart-N)"`, so all 11 chart shapes re-color per theme automatically |
 
@@ -229,7 +234,7 @@ so rebuild or `go run .` to see it):
    attribute value and in `localStorage`, e.g. `dracula`.
 
 2. **Append one `[data-theme="dracula"]` block** after the last theme
-   block. The contract is **44 variables** — all five built-in blocks are
+   block. The contract is **44 variables** — all ten built-in blocks are
    structurally identical, and every surface (tree, markdown, code
    tokens, CSV charts, overlays, scrollbars) hangs off them:
 
@@ -302,9 +307,9 @@ so rebuild or `go run .` to see it):
 
 3. **Register it in the picker** — two spots in the script blocks:
    ```js
-   // boot allowlist (~2369): saved themes outside this list fall back
-   var THEMES = ['light', 'dark', 'nord', 'opencode', 'dracula'];
-   // picker menu (~2499): entries render as menu rows
+   // boot allowlist (~3133): saved themes outside this list fall back
+   var THEMES = ['light', 'dark', 'nord', 'opencode', 'rose', 'rosepine', 'aura', 'kanagawa', 'mercury', 'monokai', 'dracula'];
+   // picker menu (~3393): entries render as menu rows
    var THEMES = [
        { id: 'light',    label: 'Light',         swatch: ['#ffffff', '#705dcf'] },
        { id: 'dracula',  label: 'Dracula',       swatch: ['#282a36', '#bd93f9'] },

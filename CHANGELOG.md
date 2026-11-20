@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+- [added] Synced with upstream RepoView v0.18.0–v0.24.2 (26 commits): backlinks, full-text note search, PWA/home-screen install, folder search with contiguous-match ranking, HTML file icon, desktop sidebar toggle, Word (`.docx`) rendering, password login and share links, one-click password shares, `/_raw/<path>` previews, image/video/audio previews over 2 MB, and Obsidian wiki links in frontmatter
+- [added] Five OpenCode themes join the picker: Rosé Pine, Aura, Kanagawa, Mercury and Monokai (ten built-in colorways total), each shipping the full 44-variable contract plus code-token and chart palettes
+- [fixed] OpenCode Orng text contrast now matches Dark rose's measured WCAG ratios — body text 12.07:1, secondary 6.00:1, tertiary 3.38:1 and links 8.54:1 on the `#0a0a0a` base (previously 17.06:1, 7.85:1, 5.01:1 and 5.75:1), so long sessions read as softly as the rose colorway
+- [security] Adopted upstream's access-control layer: sandboxed raw HTML/SVG previews, same-origin websocket checks, password-login rate limiting and scope-limited share sessions
+- [changed] File-size handling follows upstream's split: text rendering is capped at 2 MB (`isTooLarge` → download), while images, video and audio preview from `/_raw/` at any size
 
 ## [v0.0.6] - 2026-11-13
 

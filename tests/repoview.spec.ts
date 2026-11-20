@@ -782,14 +782,12 @@ test.describe("Markdown raw/preview toggle", () => {
     );
   });
 
-  test("Theme picker switches Light, Dark, Nord and OpenCode colorways", async ({
-    page,
-  }) => {
+  test("Theme picker switches all ten colorways", async ({ page }) => {
     await page.goto("/");
     await page.locator("#theme-toggle").click();
     const menu = page.locator("#theme-menu");
     await expect(menu).toBeVisible();
-    await expect(page.locator(".theme-menu-item")).toHaveCount(5);
+    await expect(page.locator(".theme-menu-item")).toHaveCount(10);
     // Close once so every loop cycle opens the menu from a clean state.
     await page.keyboard.press("Escape");
     await expect(menu).toBeHidden();
@@ -800,6 +798,12 @@ test.describe("Markdown raw/preview toggle", () => {
       ["Dark", "dark"],
       ["Nord", "nord"],
       ["OpenCode Orng", "opencode"],
+      ["Dark rose", "rose"],
+      ["Rosé Pine", "rosepine"],
+      ["Aura", "aura"],
+      ["Kanagawa", "kanagawa"],
+      ["Mercury", "mercury"],
+      ["Monokai", "monokai"],
     ]) {
       // Selecting a theme closes the menu, so re-open it each cycle.
       await page.locator("#theme-toggle").click();
@@ -814,12 +818,74 @@ test.describe("Markdown raw/preview toggle", () => {
         getComputedStyle(document.body).backgroundColor,
       );
     }
-    // All four colorways render a distinct chrome color.
-    expect(new Set(Object.values(bgs)).size).toBe(4);
+    // All ten colorways render a distinct chrome color.
+    expect(new Set(Object.values(bgs)).size).toBe(10);
+  });
+
+  test("OpenCode Orng text contrast matches Dark rose", async ({ page }) => {
+    // Measured WCAG ratios from the Dark rose colorway: the OpenCode Orng
+    // text ramp is tuned to the same values so long sessions read equally
+    // softly (the old #eeeeee/#a3a3a3/#808080 ramp was considerably harsher).
+    const measure = async (theme: string) => {
+      await page.goto("/");
+      await page.evaluate((t) => localStorage.setItem("rv-theme", t), theme);
+      await page.reload();
+      return page.evaluate(() => {
+        const styles = getComputedStyle(document.documentElement);
+        const bg = styles.getPropertyValue("--rv-bg").trim();
+        const lin = (v: number) => {
+          v /= 255;
+          return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+        };
+        const lum = (hex: string) => {
+          const h = hex.replace("#", "");
+          const [r, g, b] = [0, 2, 4].map((i) =>
+            parseInt(h.slice(i, i + 2), 16),
+          );
+          return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+        };
+        const ratio = (a: string, b: string) => {
+          const [hi, lo] = [lum(a), lum(b)].sort((x, y) => y - x);
+          return (hi + 0.05) / (lo + 0.05);
+        };
+        return Object.fromEntries(
+          [
+            "--rv-text",
+            "--rv-text-secondary",
+            "--rv-text-tertiary",
+            "--rv-link",
+          ].map((name) => {
+            const color = styles.getPropertyValue(name).trim();
+            return [name, { color, ratio: ratio(color, bg) }];
+          }),
+        );
+      });
+    };
+
+    const rose = await measure("rose");
+    const orng = await measure("opencode");
+    for (const name of Object.keys(rose)) {
+      expect(orng[name].ratio).toBeCloseTo(rose[name].ratio, 1);
+    }
+    // Pin the tuned Orng ramp itself (hex values, not just ratios).
+    expect(orng["--rv-text"].color).toBe("#cacaca");
+    expect(orng["--rv-text-secondary"].color).toBe("#8d8d8d");
+    expect(orng["--rv-text-tertiary"].color).toBe("#656565");
+    expect(orng["--rv-link"].color).toBe("#f29171");
   });
 
   test("Plain-text reading view follows dark colorways", async ({ page }) => {
-    for (const theme of ["dark", "nord", "opencode"]) {
+    for (const theme of [
+      "dark",
+      "nord",
+      "opencode",
+      "rose",
+      "rosepine",
+      "aura",
+      "kanagawa",
+      "mercury",
+      "monokai",
+    ]) {
       await page.addInitScript(
         (t) => {
           localStorage.setItem("rv-theme", t);
@@ -1897,7 +1963,7 @@ test.describe("PWA (Add to Home Screen)", () => {
     expect((await request.get(touchIcon!)).ok()).toBeTruthy();
   });
 
-  test("theme-color meta follows the light/dark toggle", async ({ page }) => {
+  test("theme-color meta follows the active theme", async ({ page }) => {
     await page.emulateMedia({ colorScheme: "light" });
     await page.goto("/");
     await page.evaluate(() => localStorage.removeItem("rv-theme"));
@@ -1906,13 +1972,19 @@ test.describe("PWA (Add to Home Screen)", () => {
     await expect(meta).toHaveAttribute("content", "#ffffff");
 
     await page.locator("#theme-toggle").click();
+    await page
+      .locator("#theme-menu .theme-menu-item", { hasText: /^Dark(✓)?$/ })
+      .click();
     await expect(meta).toHaveAttribute("content", "#1e1e2e");
 
-    // Persisted dark theme is applied on load, before any toggle.
+    // Persisted dark theme is applied on load, before any pick.
     await page.reload();
     await expect(meta).toHaveAttribute("content", "#1e1e2e");
 
     await page.locator("#theme-toggle").click();
+    await page
+      .locator("#theme-menu .theme-menu-item", { hasText: /^Light(✓)?$/ })
+      .click();
     await expect(meta).toHaveAttribute("content", "#ffffff");
   });
 
@@ -1983,6 +2055,9 @@ test.describe("Rendering safety", () => {
     await page.goto("/evil.md");
     await expect(page.locator("#content-area .mermaid")).toHaveCount(1);
     await page.locator("#theme-toggle").click();
+    await page
+      .locator("#theme-menu .theme-menu-item", { hasText: /^Nord(✓)?$/ })
+      .click();
     await page.emulateMedia({ colorScheme: "dark" });
     await page.waitForTimeout(500);
     expect(await page.evaluate(() => (window as any).__pwned)).toBeUndefined();
