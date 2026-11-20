@@ -71,6 +71,8 @@ show the fold UI holds up under a tinted theme.
 - **CSV charts** — a Charts view beside the table with hand-rolled SVG visuals, no dependencies: bar, horizontal bar, stacked bar, histogram, line, area, scatter, bubble, heat map, pie and donut; choose the X column, numeric measure and aggregation (sum, avg, min, max, count), group by a colour column where it makes sense, and charts refresh live with the active row filters. Series colours follow the active theme (`--rv-chart-1…10` palettes), and a dashed accent guideline tracks the pointer across the plot while you read values
 - **XML viewer** — `.xml` files get Tree/Table/Code views with client-side element filtering via tag globs (`book*`), attribute matchers (`book@id=x`), text search and XPath (`//book[@genre='web']`)
 - **Fuzzy file search** — press `t` to open a "Go to file" modal with fuzzy matching
+- **Full-text search** — press `/` (or tap the search icon) to search inside every file; all words must match, `"quoted phrases"` match exactly, and opening a result scrolls to the first hit. `Tab` switches between file and content search
+- **Backlinks** — markdown notes list the notes that link to them (`[[wiki links]]`, `![[embeds]]`, and relative `[text](note.md)` links), most recently edited first; tap one to jump to the link
 - **Live reload** — WebSocket-based file watching with fsnotify; changes appear instantly
 - **Single binary** — all HTML/CSS/JS embedded via `go:embed`, no external dependencies at runtime
 - **Lazy-loading tree** — sidebar fetches directory contents on demand for fast startup on large repos
@@ -337,17 +339,58 @@ Structure notes learned by shipping the system:
   standalone action-button rule set with `.outline-btn` — declare new
   header action styling there to keep every bar button uniform.
 
+## Using on your phone (Add to Home Screen)
+
+RepoView can be installed as a home-screen web app (PWA), so a server on another machine becomes a notes viewer on your phone. Nothing is synced or stored on the device. Without a password RepoView has no authentication, so either keep it on a private network or turn on [password login](#public-access-and-sharing). [Tailscale](https://tailscale.com) works well:
+
+```bash
+# on the server (e.g. a VPS syncing your notes from Dropbox)
+repoview --host "$(tailscale ip -4)" --no-browser ~/Dropbox/notes
+```
+
+On the iPhone (with Tailscale connected), open `http://<tailscale-ip>:7777` in Safari, then tap **Share → Add to Home Screen**. It launches full-screen with its own icon, named after the folder.
+
+## Public access and sharing
+
+To put RepoView on the internet, set an owner password and put it behind an HTTPS proxy such as [Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/):
+
+```bash
+REPOVIEW_PASSWORD='a long passphrase' repoview --no-browser ~/notes
+cloudflared tunnel --url http://localhost:7777   # or a named tunnel with your hostname
+```
+
+- You sign in at `/login`; the session lasts 30 days. Use `REPOVIEW_PASSWORD_HASH` with a bcrypt hash instead of a plaintext password if you prefer (`htpasswd -nbBC 12 "" 'pw' | cut -d: -f2`). Changing the password signs every session out.
+- **Share** (on any file or folder, including the root) creates a link like `/s/quarterly-report-k3J9xQ…` with an optional password (a random one is suggested) and an expiry (1 hour to 30 days, a custom number of hours/days, or never). Copy the password when you create the share; it's stored hashed and can't be shown again. For password shares the dialog also gives a **one-click link** (`/s/…#k=<password>`) that opens without typing; browsers never send the part after `#` to the server, and the page removes it from the address bar. Anyone with that link can view, so for sensitive shares use **Copy link + password** or send them separately.
+- People with the link see the normal viewer, limited to the shared file or folder: tree, search, backlinks, raw files and live reload all stay inside it, and dotfiles (`.env`, `.git/`) and symlinks pointing outside are hidden. "Open in editor" and share management are owner-only.
+- The shared-links button in the header lists your links and revokes them; revoking or expiry cuts off access immediately.
+- Five password attempts from one IP (an IPv6 /64 counts as one) without a success lock that IP out of that login (owner, or a given share) for 15 minutes. Each login also accepts at most 50 attempts per 15 minutes from all IPs together. Browsers you have signed in with before are exempt from that cap, so an attack can only block sign-ins from new browsers; existing sessions keep working.
+- Signing out clears the cookie on that device. To end every session (e.g. a lost laptop), change the password.
+- RepoView trusts `Cf-Connecting-IP` and `X-Forwarded-Proto` only from a proxy on the same machine (cloudflared), and ignores `X-Forwarded-For`. Don't put a proxy on another machine in front of it.
+
+State lives in `~/.config/repoview/` (`$REPOVIEW_CONFIG_DIR` overrides it): `secret` (the session signing key) and `shares/<id>.json` (one file per served folder). Several RepoView instances can run at once: each serves on its own port and keeps its own shares and cookies, and instances serving the same folder share its links safely.
+
+Known limitation: in Obsidian vaults, raw HTML in notes is rendered as-is, so don't publicly serve a vault that holds notes from untrusted sources. The design, security model and a deployment checklist are in [docs/design/public-access-and-sharing.md](docs/design/public-access-and-sharing.md); read the checklist before going public.
+
 ## API
 
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/tree?path=` | Returns immediate children of a directory as JSON |
-| `GET /api/file?path=` | Returns rendered file content as JSON. Flags: `isMarkdown`, `isCSV`, `isSVG`, `isHTML`, `isXML` (+ `rawXML` for the DOM-parseable source), `isPDF`, `isJSONL`, `isBinary`, `tooLarge` (file exceeds the 16 MB inline cap → Download via `/api/raw`), `content` (rendered HTML), `rawContent` (code view), `rawCSV`, `rawSVG`, `mimeType`, `size`. Optional `&as=txt\|md\|csv\|xml\|wiki` overrides how the file renders ("Read file as" menu; `as=wiki` renders Markdown and expands Obsidian wiki links even outside an `.obsidian` vault) |
+| `GET /api/file?path=` | Returns rendered file content as JSON. Flags: `isMarkdown`, `isCSV`, `isSVG`, `isHTML` (+ `previewURL` for the sandboxed preview), `isXML` (+ `rawXML` for the DOM-parseable source), `isPDF`, `isJSONL`, `isBinary` (+ `mimeType`, `size`; images/video/audio preview at any size), `isTooLarge` (text over the 2 MB render cap → Download via `/_raw/<path>`), `content` (rendered HTML), `rawContent` (code view), `rawCSV`, `rawSVG`, `size`. Optional `&as=txt\|md\|csv\|xml\|wiki` overrides how the file renders ("Read file as" menu; `as=wiki` renders Markdown and expands Obsidian wiki links even outside an `.obsidian` vault) |
 | `GET /api/raw?path=` | Serves the original file bytes for inline display and downloads (supports Range requests) |
+| `GET /_raw/<path>` | Path-based raw route; relative assets in HTML previews resolve against the file's own folder |
 | `GET /api/files` | Returns a flat list of all file paths (uses `git ls-files` when available) |
 | `GET /api/jsonl?path=&page=&pageSize=` | Returns a page of JSONL records as pretty-printed JSON (max 100/page) |
+| `GET /api/search?q=&limit=` | Case-insensitive full-text search over text files (≤2 MB). Every term must appear in the file's contents or path; `"quoted phrases"` are matched exactly. Returns ranked results with up to 3 matching lines each |
+| `GET /api/manifest.webmanifest` | Web app manifest (enables "Add to Home Screen") |
+| `GET /api/backlinks?path=` | Markdown notes linking to `path`, most recently modified first, with up to 3 linking lines each. Counts wiki links (in Obsidian vaults) and relative/root-relative markdown links; ignores code blocks |
 | `GET /api/editors` | Returns available editors for the "Open in editor" feature |
 | `POST /api/open?path=&editor=` | Opens a file in a configured editor (`vscode`, `cursor`, `sublime`, `zed`) |
+| `GET/POST /login`, `POST /logout` | Owner sign-in and sign-out (when a password is set) |
+| `GET /api/shares` | Owner: list share links |
+| `POST /api/shares` | Owner: create a share, JSON `{"path", "password", "expiresIn"}` (`expiresIn` in seconds, 0 = never) |
+| `DELETE /api/shares?id=` | Owner: revoke a share |
+| `/s/<slug>-<id>/…` | A share: password prompt, then the viewer and `api/*`/`ws` limited to the shared item |
 | `WS /ws` | WebSocket for file change notifications (same-origin only) |
 
 All read-only endpoints accept `GET`/`HEAD` only and answer `405` otherwise.
@@ -473,10 +516,19 @@ Install one-liners pull exactly these names.
 ### Project Structure
 
 ```
-main.go                # Server, API handlers, WebSocket hub, file watchers
-update.go              # update subcommand + GitHub release checks
-main_test.go           # Backend unit and integration tests
-static/index.html      # Single-page frontend (embedded at build time)
+main.go              # Server, API handlers, WebSocket hub, file watchers
+update.go            # update subcommand + GitHub release checks
+main_test.go         # Backend unit and integration tests
+scope.go             # Per-request path scope (owner root or shared item)
+auth.go              # Login/sharing core: tokens, credentials, rate limiter, share ids
+gate.go, pages.go    # Routing, sessions, shares API, login and share-password pages
+sharestore.go        # Share and secret persistence
+search.go            # Full-text search over note contents
+backlinks.go         # Backlinks for markdown notes
+preview.go, raw.go   # Sandboxed HTML previews and the /_raw/<path> route
+pwa.go               # Web app manifest and icons
+markdown_safety.go   # Link and URL sanitizing for rendered markdown
+static/index.html    # Single-page frontend (embedded at build time)
 static/index_test.html # Frontend test harness
 tests/                 # Playwright browser suite
 testdata/              # Sample files used by tests

@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"html"
 	"io"
-	"io/fs"
 	"log"
 	"net"
 	"net/http"
@@ -22,6 +21,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/alecthomas/chroma/v2"
 	chromahtml "github.com/alecthomas/chroma/v2/formatters/html"
@@ -38,7 +38,7 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-//go:embed static/index.html
+//go:embed static/index.html static/icons/*.png
 var staticFiles embed.FS
 
 var version = "dev"
@@ -64,13 +64,6 @@ var editorSetupURLs = map[string]string{
 	"sublime": "https://www.sublimetext.com/docs/command_line.html",
 	"zed":     "https://zed.dev/features#cli",
 }
-
-// maxInlineBytes caps files rendered inline by /api/file: reading and
-// formatting larger files would buffer too much content in a single
-// request. Larger files are reported with tooLarge=true and the frontend
-// offers a Download link backed by /api/raw (which streams efficiently
-// and supports Range requests).
-var maxInlineBytes int64 = 16 << 20 // 16 MB
 
 // requireGET rejects non-GET requests to API read endpoints.
 func requireGET(w http.ResponseWriter, r *http.Request) bool {
@@ -143,41 +136,18 @@ func main() {
 		log.Println("Obsidian vault detected, enabling wiki links")
 	}
 
-	hub := newHub()
+	cfg, err := serverConfigFromEnv(rootDir)
+	if err != nil {
+		log.Fatal(err)
+	}
+	app := newServer(cfg)
 
 	watcher, err := fsnotify.NewWatcher()
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer watcher.Close()
-
-	go watchLoop(watcher, hub)
-
-	http.HandleFunc("/api/tree", handleTree)
-	http.HandleFunc("/api/file", handleFile)
-	http.HandleFunc("/api/files", handleFiles)
-	http.HandleFunc("/api/raw", handleRaw)
-	http.HandleFunc("/api/jsonl", handleJSONL)
-	http.HandleFunc("/api/editors", handleEditors)
-	http.HandleFunc("/api/open", handleOpen)
-	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
-		handleWS(w, r, hub, watcher)
-	})
-
-	// Serve index.html for all non-API paths (SPA catch-all).
-	staticSub, err := fs.Sub(staticFiles, "static")
-	if err != nil {
-		log.Fatal(err)
-	}
-	indexHTML, err := fs.ReadFile(staticSub, "index.html")
-	if err != nil {
-		log.Fatal(err)
-	}
-	indexHTML = prepareIndexHTML(indexHTML, filepath.Base(rootDir))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.Write(indexHTML)
-	})
+	app.watch(watcher)
 
 	// Find an available port (auto-increment if default port is taken)
 	actualPort := *port
@@ -187,14 +157,27 @@ func main() {
 
 	addr := fmt.Sprintf("%s:%d", *host, actualPort)
 	url := fmt.Sprintf("http://localhost:%d", actualPort)
-	fmt.Printf("RepoView v%s · %s\n→ http://%s\n\nPress Ctrl+C to stop\n", version, rootDir, addr)
+	fmt.Printf("RepoView v%s · %s\n→ http://%s\n", version, rootDir, addr)
+	if app.authEnabled() {
+		fmt.Println("Password login on; share links enabled")
+	} else if !isLoopbackHost(*host) {
+		fmt.Println("WARNING: listening beyond localhost without a password; set REPOVIEW_PASSWORD")
+	}
+	fmt.Print("\nPress Ctrl+C to stop\n")
 
 	if !*noBrowser {
 		_ = browser.OpenURL(url)
 	}
 
-	log.Fatal(http.ListenAndServe(addr, nil))
+	log.Fatal(newHTTPServer(addr, app.handler()).ListenAndServe())
 }
+
+// rawPrefix is the path-based route for raw file bytes: /_raw/<relative/path>.
+// HTML previews load from it so relative URLs inside a page (img, link,
+// script, CSS url(), <a href>) resolve against the file's own folder. The
+// leading underscore keeps it from shadowing a real top-level "raw/" folder,
+// whose files are reachable at the SPA's clean URL /raw/<file>.
+const rawPrefix = "/_raw/"
 
 // findAvailablePort tries to find an available port starting from startPort.
 // It tries up to maxAttempts ports, incrementing by 1 each time.
@@ -212,25 +195,12 @@ func findAvailablePort(host string, startPort, maxAttempts int) int {
 }
 
 func prepareIndexHTML(raw []byte, rootName string) []byte {
-	jsName, _ := json.Marshal(rootName)
-	out := bytes.ReplaceAll(raw, []byte("__ROOT_DIR_NAME_JS__"), jsName)
-	out = bytes.ReplaceAll(out, []byte("__ROOT_DIR_NAME__"), []byte(html.EscapeString(rootName)))
-	return out
+	return renderIndex(raw, rootName, pageConfig{Mode: "local"})
 }
 
 // safePath resolves a request path within rootDir and rejects traversal.
 func safePath(reqPath string) (string, error) {
-	cleaned := filepath.Clean(reqPath)
-	full := filepath.Join(rootDir, cleaned)
-	abs, err := filepath.Abs(full)
-	if err != nil {
-		return "", err
-	}
-	// Ensure path is exactly rootDir or inside rootDir (not a sibling with similar prefix)
-	if abs != rootDir && !strings.HasPrefix(abs, rootDir+string(os.PathSeparator)) {
-		return "", fmt.Errorf("path outside root")
-	}
-	return abs, nil
+	return scope{root: rootDir}.resolve(reqPath)
 }
 
 // handleTree returns immediate children of a directory as JSON.
@@ -244,7 +214,8 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 		reqPath = "."
 	}
 
-	dirPath, err := safePath(reqPath)
+	sc := scopeOf(r)
+	dirPath, err := sc.resolve(reqPath)
 	if err != nil {
 		http.Error(w, "invalid path", http.StatusBadRequest)
 		return
@@ -259,8 +230,11 @@ func handleTree(w http.ResponseWriter, r *http.Request) {
 	result := make([]TreeEntry, 0, len(entries))
 	for _, e := range entries {
 		name := e.Name()
-		relPath, _ := filepath.Rel(rootDir, filepath.Join(dirPath, name))
+		relPath, _ := filepath.Rel(sc.root, filepath.Join(dirPath, name))
 		relPath = filepath.ToSlash(relPath)
+		if (sc.restricted || sc.only != "") && !sc.visible(relPath) {
+			continue
+		}
 		ext := ""
 		if !e.IsDir() {
 			ext = strings.TrimPrefix(filepath.Ext(name), ".")
@@ -299,11 +273,13 @@ type FileResponse struct {
 	IsHTML     bool   `json:"isHTML,omitempty"`
 	IsXML      bool   `json:"isXML,omitempty"`
 	RawXML     string `json:"rawXML,omitempty"`
+	PreviewURL string `json:"previewURL,omitempty"` // HTML: where the sandboxed preview loads from
 	IsPDF      bool   `json:"isPDF,omitempty"`
 	IsBinary   bool   `json:"isBinary,omitempty"`
 	IsJSONL    bool   `json:"isJSONL,omitempty"`
+	IsWord     bool   `json:"isWord,omitempty"`
+	IsTooLarge bool   `json:"isTooLarge,omitempty"`
 	MimeType   string `json:"mimeType,omitempty"`
-	TooLarge   bool   `json:"tooLarge,omitempty"`
 	Size       int64  `json:"size,omitempty"`
 }
 
@@ -329,7 +305,7 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	filePath, err := safePath(reqPath)
+	filePath, err := scopeOf(r).resolve(reqPath)
 	if err != nil {
 		http.Error(w, "invalid path", http.StatusBadRequest)
 		return
@@ -358,6 +334,20 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Detect Word (.docx) documents; the frontend renders them from /api/raw.
+	if ext == ".docx" {
+		resp := FileResponse{
+			Name:     filepath.Base(filePath),
+			Path:     reqPath,
+			IsWord:   true,
+			MimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+			Size:     info.Size(),
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+		return
+	}
+
 	// Detect JSONL files and return metadata for frontend pagination.
 	if ext == ".jsonl" {
 		resp := FileResponse{
@@ -372,14 +362,27 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Files larger than the inline cap are not read or rendered:
-	// buffer only the first bytes to describe the file as best we can.
-	if info.Size() > maxInlineBytes {
+	if info.Size() > maxRenderSize {
+		// The cap guards server-side rendering of text. Binary files (images,
+		// video, audio) are shown by the browser from /api/raw, so sniff the
+		// head and let them through at any size.
+		if mime, ok := sniffBinary(filePath); ok {
+			resp := FileResponse{
+				Name:     filepath.Base(filePath),
+				Path:     reqPath,
+				IsBinary: true,
+				MimeType: mime,
+				Size:     info.Size(),
+			}
+			w.Header().Set("Content-Type", "application/json")
+			json.NewEncoder(w).Encode(resp)
+			return
+		}
 		resp := FileResponse{
-			Name:     filepath.Base(filePath),
-			Path:     reqPath,
-			TooLarge: true,
-			Size:     info.Size(),
+			Name:       filepath.Base(filePath),
+			Path:       reqPath,
+			IsTooLarge: true,
+			Size:       info.Size(),
 		}
 		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(resp)
@@ -498,6 +501,14 @@ func handleFile(w http.ResponseWriter, r *http.Request) {
 		resp.RawSVG = string(data)
 	}
 
+	if isHTML {
+		// Path relative to the scope, so relative URLs inside the page
+		// resolve within it.
+		if rel, err := filepath.Rel(scopeOf(r).root, filePath); err == nil {
+			resp.PreviewURL = previewURLFor(r, filepath.ToSlash(rel))
+		}
+	}
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 }
@@ -552,59 +563,79 @@ var wikiImageExts = map[string]bool{
 // preprocessWikiLinks converts Obsidian wiki link syntax to HTML placeholders for frontend resolution.
 func preprocessWikiLinks(data []byte) []byte {
 	return wikiLinkRe.ReplaceAllFunc(data, func(match []byte) []byte {
-		// Inside a markdown table, the alias separator is written as \| to avoid colliding with
-		// the column separator. Treat \| identically to | by unescaping before splitting.
-		inner := strings.ReplaceAll(string(match[2:len(match)-2]), `\|`, `|`)
+		return []byte(renderWikiLink(string(match[2:len(match)-2]), true))
+	})
+}
 
-		targetPart, alias, hasAlias := strings.Cut(inner, "|")
+func renderWikiLink(link string, embedImages bool) string {
+	// Inside a markdown table, the alias separator is written as \| to avoid colliding with
+	// the column separator. Treat \| identically to | by unescaping before splitting.
+	inner := strings.ReplaceAll(link, `\|`, `|`)
 
-		heading := ""
-		target := targetPart
-		if idx := strings.IndexByte(targetPart, '#'); idx >= 0 {
-			target = targetPart[:idx]
-			heading = targetPart[idx+1:]
-		}
+	targetPart, alias, hasAlias := strings.Cut(inner, "|")
 
-		// Obsidian renders image wiki-links as <img> elements.
-		if wikiImageExts[strings.ToLower(filepath.Ext(target))] {
-			altText := strings.TrimSuffix(filepath.Base(target), filepath.Ext(target))
-			result := fmt.Sprintf(`<img class="wiki-image" data-wiki-target="%s"`, html.EscapeString(target))
-			if hasAlias && alias != "" {
-				// Alias may be a width ("200"), WxH ("200x300"), or alt text.
-				if w, err := strconv.Atoi(alias); err == nil {
-					result += fmt.Sprintf(` width="%d"`, w)
-				} else if parts := strings.SplitN(alias, "x", 2); len(parts) == 2 {
-					if w, err1 := strconv.Atoi(parts[0]); err1 == nil {
-						if h, err2 := strconv.Atoi(parts[1]); err2 == nil {
-							result += fmt.Sprintf(` width="%d" height="%d"`, w, h)
-						} else {
-							altText = alias
-						}
+	heading := ""
+	target := targetPart
+	if idx := strings.IndexByte(targetPart, '#'); idx >= 0 {
+		target = targetPart[:idx]
+		heading = targetPart[idx+1:]
+	}
+
+	// Obsidian renders image wiki-links as <img> elements.
+	if embedImages && wikiImageExts[strings.ToLower(filepath.Ext(target))] {
+		altText := strings.TrimSuffix(filepath.Base(target), filepath.Ext(target))
+		result := fmt.Sprintf(`<img class="wiki-image" data-wiki-target="%s"`, html.EscapeString(target))
+		if hasAlias && alias != "" {
+			// Alias may be a width ("200"), WxH ("200x300"), or alt text.
+			if w, err := strconv.Atoi(alias); err == nil {
+				result += fmt.Sprintf(` width="%d"`, w)
+			} else if parts := strings.SplitN(alias, "x", 2); len(parts) == 2 {
+				if w, err1 := strconv.Atoi(parts[0]); err1 == nil {
+					if h, err2 := strconv.Atoi(parts[1]); err2 == nil {
+						result += fmt.Sprintf(` width="%d" height="%d"`, w, h)
 					} else {
 						altText = alias
 					}
 				} else {
 					altText = alias
 				}
+			} else {
+				altText = alias
 			}
-			result += fmt.Sprintf(` alt="%s">`, html.EscapeString(altText))
-			return []byte(result)
 		}
+		result += fmt.Sprintf(` alt="%s">`, html.EscapeString(altText))
+		return result
+	}
 
-		display := target
-		if hasAlias {
-			display = alias
-		}
+	display := target
+	if hasAlias {
+		display = alias
+	}
 
-		// Build the placeholder anchor tag with href="#" so it's clickable
-		result := fmt.Sprintf(`<a class="wiki-link" href="#" data-wiki-target="%s"`,
-			html.EscapeString(target))
-		if heading != "" {
-			result += fmt.Sprintf(` data-wiki-heading="%s"`, html.EscapeString(heading))
-		}
-		result += fmt.Sprintf(`>%s</a>`, html.EscapeString(display))
-		return []byte(result)
-	})
+	// Build the placeholder anchor tag with href="#" so it's clickable
+	result := fmt.Sprintf(`<a class="wiki-link" href="#" data-wiki-target="%s"`,
+		html.EscapeString(target))
+	if heading != "" {
+		result += fmt.Sprintf(` data-wiki-heading="%s"`, html.EscapeString(heading))
+	}
+	result += fmt.Sprintf(`>%s</a>`, html.EscapeString(display))
+	return result
+}
+
+func renderFrontmatterValue(value string) string {
+	if !isObsidianVault {
+		return html.EscapeString(value)
+	}
+
+	var buf strings.Builder
+	end := 0
+	for _, match := range wikiLinkRe.FindAllStringSubmatchIndex(value, -1) {
+		buf.WriteString(html.EscapeString(value[end:match[0]]))
+		buf.WriteString(renderWikiLink(value[match[2]:match[3]], false))
+		end = match[1]
+	}
+	buf.WriteString(html.EscapeString(value[end:]))
+	return buf.String()
 }
 
 // renderMarkdown converts markdown bytes to HTML using goldmark with GFM.
@@ -619,7 +650,7 @@ func renderMarkdown(w io.Writer, data []byte, allowWiki bool) {
 		fmt.Fprint(w, "<table><thead><tr><th>Key</th><th>Value</th></tr></thead><tbody>")
 		for _, p := range pairs {
 			fmt.Fprintf(w, "<tr><td>%s</td><td>%s</td></tr>",
-				html.EscapeString(p[0]), html.EscapeString(p[1]))
+				html.EscapeString(p[0]), renderFrontmatterValue(p[1]))
 		}
 		fmt.Fprint(w, "</tbody></table>")
 	}
@@ -632,6 +663,7 @@ func renderMarkdown(w io.Writer, data []byte, allowWiki bool) {
 	md := goldmark.New(
 		goldmark.WithExtensions(
 			extension.GFM,
+			safeAutoLinks{},
 		),
 		goldmark.WithParserOptions(
 			parser.WithAutoHeadingID(),
@@ -746,6 +778,23 @@ func prettyPrint(data []byte, ext string) []byte {
 }
 
 // isBinaryContent returns true if the data appears to be binary (non-text).
+// sniffBinary reads only the first 512 bytes of a file and reports whether it
+// is binary, with its detected MIME type.
+func sniffBinary(path string) (string, bool) {
+	f, err := os.Open(path)
+	if err != nil {
+		return "", false
+	}
+	defer f.Close()
+	head := make([]byte, 512)
+	n, _ := io.ReadFull(f, head)
+	head = head[:n]
+	if !isBinaryContent(head) {
+		return "", false
+	}
+	return http.DetectContentType(head), true
+}
+
 func isBinaryContent(data []byte) bool {
 	if len(data) == 0 {
 		return false
@@ -767,6 +816,7 @@ func isBinaryContent(data []byte) bool {
 }
 
 // handleRaw serves raw file bytes with proper Content-Type for inline display.
+// Kept for backwards compatibility; the frontend uses /_raw/<path>.
 func handleRaw(w http.ResponseWriter, r *http.Request) {
 	if !requireGET(w, r) {
 		return
@@ -777,20 +827,73 @@ func handleRaw(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "path required", http.StatusBadRequest)
 		return
 	}
+	serveRawFile(w, r, reqPath)
+}
 
-	filePath, err := safePath(reqPath)
+// handleRawPath serves raw file bytes at /_raw/<relative/path>.
+func handleRawPath(w http.ResponseWriter, r *http.Request) {
+	rel := strings.TrimPrefix(r.URL.Path, rawPrefix)
+	if rel == "" {
+		http.NotFound(w, r)
+		return
+	}
+	serveRawFile(w, r, rel)
+}
+
+// serveRawFile serves the file at rel, relative to the request's scope.
+// Traversal is rejected with 400; missing files, directories and symlinks
+// resolving outside the scope root are 404.
+func serveRawFile(w http.ResponseWriter, r *http.Request, rel string) {
+	for _, seg := range strings.Split(filepath.ToSlash(rel), "/") {
+		if seg == ".." {
+			http.Error(w, "invalid path", http.StatusBadRequest)
+			return
+		}
+	}
+	sc := scopeOf(r)
+	filePath, err := sc.resolve(rel)
 	if err != nil {
 		http.Error(w, "invalid path", http.StatusBadRequest)
 		return
 	}
-
-	info, err := os.Stat(filePath)
-	if err != nil || info.IsDir() {
+	real, err := realPathInRoot(sc.root, filePath)
+	if err != nil {
 		http.Error(w, "file not found", http.StatusNotFound)
 		return
 	}
 
-	http.ServeFile(w, r, filePath)
+	f, err := os.Open(real)
+	if err != nil {
+		http.Error(w, "file not found", http.StatusNotFound)
+		return
+	}
+	defer f.Close()
+	info, err := f.Stat()
+	if err != nil || info.IsDir() {
+		http.Error(w, "file not found", http.StatusNotFound)
+		return
+	}
+	// ServeContent, not ServeFile: ServeFile redirects ".../index.html" to
+	// the directory, which would break previews of index.html files. The
+	// sandboxWriter sandboxes anything whose final type can run script.
+	http.ServeContent(newSandboxWriter(w, r), r, info.Name(), info.ModTime(), f)
+}
+
+// realPathInRoot resolves symlinks in p and checks the result is still inside
+// the (symlink-resolved) root directory.
+func realPathInRoot(rootPath, p string) (string, error) {
+	real, err := filepath.EvalSymlinks(p)
+	if err != nil {
+		return "", err
+	}
+	root, err := filepath.EvalSymlinks(rootPath)
+	if err != nil {
+		return "", err
+	}
+	if real != root && !strings.HasPrefix(real, root+string(os.PathSeparator)) {
+		return "", fmt.Errorf("path outside root")
+	}
+	return real, nil
 }
 
 // handleFiles returns a flat list of all file paths for fuzzy search.
@@ -799,40 +902,17 @@ func handleFiles(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var files []string
-
-	// Try git ls-files first.
-	cmd := exec.Command("git", "-C", rootDir, "ls-files")
-	out, err := cmd.Output()
-	if err == nil && len(out) > 0 {
-		for _, line := range strings.Split(strings.TrimSpace(string(out)), "\n") {
-			if line != "" {
-				files = append(files, line)
-			}
-		}
-	} else {
-		// Walk the directory tree.
-		filepath.WalkDir(rootDir, func(path string, d fs.DirEntry, err error) error {
-			if err != nil {
-				return nil
-			}
-			name := d.Name()
-			if strings.HasPrefix(name, ".") && path != rootDir {
-				if d.IsDir() {
-					return filepath.SkipDir
-				}
-				return nil
-			}
-			if !d.IsDir() {
-				rel, _ := filepath.Rel(rootDir, path)
-				files = append(files, filepath.ToSlash(rel))
-			}
-			return nil
-		})
+	files := scopeOf(r).files()
+	if files == nil {
+		files = []string{}
 	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(files)
+}
+
+// listFiles returns all file paths under rootDir (slash-separated, relative).
+func listFiles() []string {
+	return listFilesIn(rootDir)
 }
 
 // EditorInfo is returned by the /api/editors endpoint.
@@ -941,10 +1021,38 @@ type wsClient struct {
 	send    chan []byte
 	watched map[string]bool // paths this client wants watched
 	mu      sync.Mutex
+	scope   scope       // what this client may watch; zero value = whole root
+	alive   func() bool // nil, or false once the client's share is gone
+}
+
+func (c *wsClient) scopeOrRoot() scope {
+	if c.scope.root == "" {
+		return scope{root: rootDir}
+	}
+	return c.scope
 }
 
 func newHub() *hub {
 	return &hub{clients: make(map[*wsClient]bool)}
+}
+
+func (h *hub) count() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return len(h.clients)
+}
+
+// maxWatched is the largest watch list of any client (for tests).
+func (h *hub) maxWatched() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	n := 0
+	for c := range h.clients {
+		c.mu.Lock()
+		n = max(n, len(c.watched))
+		c.mu.Unlock()
+	}
+	return n
 }
 
 func (h *hub) register(c *wsClient) {
@@ -971,13 +1079,44 @@ func (h *hub) broadcast(msg []byte) {
 	}
 }
 
-// notifyFile sends a change notification to clients watching a given path
-// or any of its parent directories.
-func (h *hub) notifyFile(relPath string) {
-	msg, _ := json.Marshal(map[string]string{"type": "change", "path": relPath})
+// sweep disconnects clients whose share was revoked or expired.
+func (h *hub) sweep() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	for c := range h.clients {
+		if c.alive != nil && !c.alive() {
+			c.conn.Close() // readPump then unregisters
+		}
+	}
+}
+
+// notifyFile sends a change notification for a path relative to rootDir.
+func (h *hub) notifyFile(relPath string) {
+	h.notifyAbs(filepath.Join(rootDir, filepath.FromSlash(relPath)))
+}
+
+// notifyAbs sends a change notification to clients watching a path or any
+// of its parent directories. Each client gets the path relative to its own
+// scope; clients whose scope doesn't include it hear nothing. Clients whose
+// share was revoked or expired are disconnected.
+func (h *hub) notifyAbs(absPath string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	for c := range h.clients {
+		if c.alive != nil && !c.alive() {
+			c.conn.Close() // readPump then unregisters
+			continue
+		}
+		sc := c.scopeOrRoot()
+		rel, err := filepath.Rel(sc.root, absPath)
+		if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
+			continue
+		}
+		relPath := filepath.ToSlash(rel)
+		if (sc.restricted || sc.only != "") && relPath != "." && !sc.visible(relPath) {
+			continue
+		}
+		msg, _ := json.Marshal(map[string]string{"type": "change", "path": relPath})
 		c.mu.Lock()
 		// Check if client is watching the exact path or any parent directory
 		watching := c.watched[relPath]
@@ -1010,6 +1149,8 @@ func (h *hub) notifyFile(relPath string) {
 	}
 }
 
+// Browsers attach cookies to cross-site websocket handshakes, so only accept
+// connections from our own pages.
 var upgrader = websocket.Upgrader{
 	CheckOrigin: checkSameOrigin,
 }
@@ -1032,6 +1173,23 @@ func checkSameOrigin(r *http.Request) bool {
 }
 
 func handleWS(w http.ResponseWriter, r *http.Request, h *hub, watcher *fsnotify.Watcher) {
+	handleWSScoped(w, r, h, watcher, nil)
+}
+
+// Websocket limits: clients only send small watch/unwatch messages.
+const (
+	maxWSClients        = 256
+	maxWatchesPerClient = 256
+	maxWSMessage        = 4096
+)
+
+// handleWSScoped upgrades the connection; the client may only watch paths
+// inside the request's scope.
+func handleWSScoped(w http.ResponseWriter, r *http.Request, h *hub, watcher *fsnotify.Watcher, alive func() bool) {
+	if h.count() >= maxWSClients {
+		http.Error(w, "too many live-reload connections", http.StatusServiceUnavailable)
+		return
+	}
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		return
@@ -1042,6 +1200,8 @@ func handleWS(w http.ResponseWriter, r *http.Request, h *hub, watcher *fsnotify.
 		hub:     h,
 		send:    make(chan []byte, 64),
 		watched: make(map[string]bool),
+		scope:   scopeOf(r),
+		alive:   alive,
 	}
 	h.register(client)
 
@@ -1066,6 +1226,7 @@ func (c *wsClient) readPump(watcher *fsnotify.Watcher) {
 		c.hub.unregister(c)
 		c.conn.Close()
 	}()
+	c.conn.SetReadLimit(maxWSMessage)
 	for {
 		_, msg, err := c.conn.ReadMessage()
 		if err != nil {
@@ -1080,7 +1241,7 @@ func (c *wsClient) readPump(watcher *fsnotify.Watcher) {
 		}
 
 		watchKey := normalizeWatchKey(req.Path)
-		absPath, err := safePath(req.Path)
+		absPath, err := c.scopeOrRoot().resolve(req.Path)
 		if err != nil {
 			continue
 		}
@@ -1088,8 +1249,14 @@ func (c *wsClient) readPump(watcher *fsnotify.Watcher) {
 		c.mu.Lock()
 		switch req.Action {
 		case "watch":
+			// Only existing paths, and a bounded number of them.
+			if _, err := os.Stat(absPath); err != nil || (!c.watched[watchKey] && len(c.watched) >= maxWatchesPerClient) {
+				break
+			}
 			c.watched[watchKey] = true
-			_ = watcher.Add(absPath)
+			if watcher != nil {
+				_ = watcher.Add(absPath)
+			}
 		case "unwatch":
 			delete(c.watched, watchKey)
 			// Don't remove from fsnotify—other clients may watch it.
@@ -1115,11 +1282,7 @@ func watchLoop(watcher *fsnotify.Watcher, h *hub) {
 				return
 			}
 			if event.Op&(fsnotify.Write|fsnotify.Create|fsnotify.Remove|fsnotify.Rename) != 0 {
-				relPath, err := filepath.Rel(rootDir, event.Name)
-				if err != nil {
-					continue
-				}
-				h.notifyFile(filepath.ToSlash(relPath))
+				h.notifyAbs(event.Name)
 			}
 		case _, ok := <-watcher.Errors:
 			if !ok {
@@ -1156,7 +1319,7 @@ func handleJSONL(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	filePath, err := safePath(reqPath)
+	filePath, err := scopeOf(r).resolve(reqPath)
 	if err != nil {
 		http.Error(w, "invalid path", http.StatusBadRequest)
 		return
@@ -1167,6 +1330,12 @@ func handleJSONL(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "file not found", http.StatusNotFound)
 		return
 	}
+
+	// Paging reads the file from the start each time; bound concurrent reads.
+	if !acquireHeavy(w, r) {
+		return
+	}
+	defer releaseHeavy()
 
 	// Count total lines first.
 	totalLines, err := countJSONLLines(filePath)
@@ -1281,4 +1450,21 @@ func readJSONLPage(filePath string, page, pageSize int) ([]string, []string, err
 	}
 
 	return records, parseErrors, nil
+}
+
+// maxRenderSize: larger files are not read or rendered by /api/file (a 20 MB
+// source file took ~3.5 GB to highlight); the frontend offers a download.
+// A variable so tests can shrink it without building 2 MB fixtures.
+var maxRenderSize int64 = 2 << 20
+
+// newHTTPServer bounds slow or oversized requests. No write timeout: raw
+// downloads and websockets are long-lived by design.
+func newHTTPServer(addr string, h http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           h,
+		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       2 * time.Minute,
+		MaxHeaderBytes:    64 << 10,
+	}
 }

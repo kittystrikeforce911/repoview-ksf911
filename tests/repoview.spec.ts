@@ -1,5 +1,19 @@
 import { test, expect } from "@playwright/test";
 
+test.describe("Local mode (no auth)", () => {
+  test("hides login and sharing controls", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("#tree-container .tree-item").first()).toBeVisible();
+    await expect(page.locator("#share-btn")).toBeHidden();
+    await expect(page.locator("#shares-btn")).toBeHidden();
+    await expect(page.locator("#logout-form")).toBeHidden();
+    // The theme toggle still sits right after the search button.
+    const search = await page.locator("#search-btn").boundingBox();
+    const theme = await page.locator("#theme-toggle").boundingBox();
+    expect(theme!.x - (search!.x + search!.width)).toBeLessThan(12);
+  });
+});
+
 test.describe("Sidebar tree", () => {
   test("root loads and contains known files", async ({ page }) => {
     await page.goto("/");
@@ -8,6 +22,12 @@ test.describe("Sidebar tree", () => {
     await expect(sidebar.locator(".tree-item .label", { hasText: "hello.md" })).toBeVisible();
     await expect(sidebar.locator(".tree-item .label", { hasText: "data.csv" })).toBeVisible();
     await expect(sidebar.locator(".tree-item .label", { hasText: "subdir" })).toBeVisible();
+  });
+
+  test("html files get the HTML file icon", async ({ page }) => {
+    await page.goto("/");
+    const row = page.locator("#tree-container .tree-item", { hasText: "sample.html" }).first();
+    await expect(row.locator(".icon text")).toHaveText("HTML");
   });
 
   test("clicking chevron collapses an expanded folder", async ({ page }) => {
@@ -180,6 +200,23 @@ test.describe("File viewing", () => {
   });
 });
 
+test.describe("Word documents", () => {
+  test("docx files get the DOC file icon", async ({ page }) => {
+    await page.goto("/");
+    const row = page.locator("#tree-container .tree-item", { hasText: "sample.docx" }).first();
+    await expect(row.locator(".icon text")).toHaveText("DOC");
+  });
+
+  test(".docx — rendered as HTML with headings, formatting, lists and tables", async ({ page }) => {
+    await page.goto("/sample.docx");
+    const doc = page.locator("#content-area .word-doc");
+    await expect(doc.locator("h1", { hasText: "Quarterly Report" })).toBeVisible();
+    await expect(doc.locator("strong", { hasText: "bold" })).toBeVisible();
+    await expect(doc.locator("li", { hasText: "Second item" })).toBeVisible();
+    await expect(doc.locator("table td", { hasText: "Revenue" })).toBeVisible();
+  });
+});
+
 test.describe("Pretty-printed files", () => {
   test("JSON — pretty-printed and syntax-highlighted", async ({ page }) => {
     await page.goto("/");
@@ -202,6 +239,28 @@ test.describe("Pretty-printed files", () => {
 });
 
 test.describe("Frontmatter", () => {
+  test("opens an Obsidian link from a quoted property", async ({ page }) => {
+    await page.goto("/frontmatter.md");
+    const content = page.locator("#content-area .markdown-body");
+    const transcript = content.getByRole("row").filter({ hasText: "transcript" });
+    const link = transcript.getByRole("link", { name: "README.md", exact: true });
+    await expect(link).toHaveAttribute("href", "/README.md");
+
+    await link.click();
+    await expect(page).toHaveURL(/\/README\.md$/);
+    await expect(content.getByRole("heading", { name: "Root README" })).toBeVisible();
+  });
+
+  test("opens an Obsidian link from a directory README property", async ({ page }) => {
+    await page.goto("/");
+    const related = page.locator(".readme-body").getByRole("row").filter({ hasText: "related" });
+    const link = related.getByRole("link", { name: "wiki-test", exact: true });
+    await expect(link).toHaveAttribute("href", "/wiki-test.md");
+
+    await link.click();
+    await expect(page).toHaveURL(/\/wiki-test\.md$/);
+  });
+
   test("renders frontmatter table and body", async ({ page }) => {
     await page.goto("/");
     await page.locator(".tree-item .label", { hasText: "frontmatter.md" }).click();
@@ -263,6 +322,171 @@ test.describe("Fuzzy search", () => {
     await page.locator("#search-input").fill("sub nes");
     await expect(page.locator(".search-result").first()).toBeVisible();
     await expect(page.locator(".search-result .sr-path", { hasText: "nested" })).toBeVisible();
+  });
+
+  test("folders are searchable and open the folder view", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("#tree-container .tree-item")).not.toHaveCount(0);
+    await page.keyboard.press("t");
+    await page.locator("#search-input").fill("subdir");
+    // The folder itself ranks first, above the files inside it
+    const first = page.locator(".search-result").first();
+    await expect(first).toHaveClass(/search-dir/);
+    await expect(first.locator(".sr-path")).toHaveText("subdir/");
+    await first.click();
+    await expect(page.locator("#search-overlay")).not.toHaveClass(/open/);
+    await expect(page).toHaveURL(/\/subdir\/$/);
+    await expect(page.locator("#content-area .dir-listing-row .name", { hasText: "nested.md" })).toBeVisible();
+  });
+
+  test("contiguous name matches outrank scattered letters", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("#tree-container .tree-item")).not.toHaveCount(0);
+    await page.keyboard.press("t");
+    await page.locator("#search-input").fill("data");
+    const first = page.locator(".search-result").first();
+    await expect(first.locator(".sr-path")).toHaveText("data.csv");
+    await expect(first.locator("mark")).toHaveCount(4);
+  });
+});
+
+test.describe("Full-text search", () => {
+  test("press '/', search contents, open result and see the hit highlighted", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("#tree-container .tree-item")).not.toHaveCount(0);
+    await page.keyboard.press("/");
+    await expect(page.locator("#search-overlay")).toHaveClass(/open/);
+    await expect(page.locator('#search-modes button[data-mode="content"]')).toHaveClass(/active/);
+    await expect(page.locator("#search-input")).toHaveAttribute("placeholder", /contents/);
+
+    // Two words that only co-occur in hello.md's content (not its name)
+    await page.locator("#search-input").fill("alice bob");
+    const result = page.locator(".content-result", { has: page.locator(".sr-path", { hasText: "hello.md" }) });
+    await expect(result).toBeVisible();
+    await expect(result.locator(".cr-snippet mark").first()).toHaveText(/alice|bob/i);
+    await expect(result.locator(".cr-count")).toHaveText("2 matches");
+    // nested.md doesn't contain these words
+    await expect(page.locator(".content-result .sr-path", { hasText: "nested.md" })).toHaveCount(0);
+
+    // data.csv also contains both names; it ranks first (same count, path order)
+    await expect(page.locator(".content-result").first()).toHaveAttribute("data-path", "data.csv");
+    await result.click();
+    await expect(page.locator("#search-overlay")).not.toHaveClass(/open/);
+    await expect(page).toHaveURL(/\/hello\.md$/);
+    await expect(page.locator("#content-area mark.search-hit")).toHaveText(/alice|bob/i);
+  });
+
+  test("quoted phrase matches exact phrase only", async ({ page }) => {
+    await page.goto("/");
+    await page.keyboard.press("/");
+    await page.locator("#search-input").fill('"inside a subdirectory"');
+    await expect(page.locator(".content-result .sr-path", { hasText: "nested.md" })).toBeVisible();
+    await page.locator("#search-input").fill('"subdirectory inside"');
+    await expect(page.locator("#search-empty")).toHaveText("No notes match");
+  });
+
+  test("Tab switches between Files and Contents modes", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.locator("#tree-container .tree-item")).not.toHaveCount(0);
+    await page.keyboard.press("/");
+    await page.locator("#search-input").fill("nested");
+    await expect(page.locator(".content-result").first()).toBeVisible();
+
+    await page.locator("#search-input").press("Tab");
+    await expect(page.locator('#search-modes button[data-mode="files"]')).toHaveClass(/active/);
+    await expect(page.locator("#search-input")).toHaveAttribute("placeholder", "Go to file…");
+    // Same query is re-run as a file-name search
+    await expect(page.locator(".search-result:not(.content-result) .sr-path", { hasText: "subdir/nested.md" })).toBeVisible();
+    await expect(page.locator(".content-result")).toHaveCount(0);
+
+    await page.locator("#search-input").press("Tab");
+    await expect(page.locator(".content-result").first()).toBeVisible();
+  });
+
+  test("short query shows a hint instead of searching", async ({ page }) => {
+    await page.goto("/");
+    await page.keyboard.press("/");
+    await page.locator("#search-input").fill("a");
+    await expect(page.locator("#search-empty")).toHaveText("Keep typing…");
+  });
+
+  test("search button in the top bar opens content search on mobile", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    await expect(page.locator("#search-btn")).toBeVisible();
+    await page.locator("#search-btn").click();
+    await expect(page.locator("#search-overlay")).toHaveClass(/open/);
+    await expect(page.locator('#search-modes button[data-mode="content"]')).toHaveClass(/active/);
+    await page.locator("#search-input").fill("subdirectory");
+    await page.locator(".content-result").first().click();
+    await expect(page).toHaveURL(/\/subdir\/nested\.md$/);
+    await expect(page.locator("#content-area mark.search-hit")).toBeInViewport();
+  });
+
+  test("'t' still opens file search in Files mode", async ({ page }) => {
+    await page.goto("/");
+    await page.keyboard.press("/");
+    await page.keyboard.press("Escape");
+    await page.keyboard.press("t");
+    await expect(page.locator('#search-modes button[data-mode="files"]')).toHaveClass(/active/);
+    await expect(page.locator(".search-result").first()).toBeVisible();
+  });
+});
+
+test.describe("Backlinks", () => {
+  test("note shows notes that link to it, and clicking reveals the link", async ({ page }) => {
+    await page.goto("/hello.md");
+    const section = page.locator("#content-area .backlinks");
+    await expect(section).toBeVisible();
+    await expect(section.locator(".backlinks-count")).toHaveText("1");
+    const item = section.locator(".backlink-item");
+    await expect(item).toHaveCount(1);
+    await expect(item).toHaveAttribute("data-path", "wiki-test.md");
+    await expect(item.locator(".bl-name")).toHaveText("wiki-test");
+    await expect(item.locator(".bl-snippet").first()).toContainText("Simple link: [[hello]]");
+    // Section sits below the note body
+    await expect(page.locator("#content-area .markdown-body + .backlinks")).toHaveCount(1);
+
+    await item.click();
+    await expect(page).toHaveURL(/\/wiki-test\.md$/);
+    const hit = page.locator("#content-area a.backlink-hit");
+    await expect(hit).toHaveCount(1);
+    await expect(hit).toHaveAttribute("href", "/hello.md");
+    await expect(hit).toBeInViewport();
+  });
+
+  test("works for notes in subfolders", async ({ page }) => {
+    await page.goto("/subdir/nested.md");
+    const item = page.locator("#content-area .backlinks .backlink-item");
+    await expect(item).toHaveAttribute("data-path", "wiki-test.md");
+    await expect(item.locator(".bl-snippet")).toContainText("[[subdir/nested]]");
+  });
+
+  test("no section when nothing links to the note", async ({ page }) => {
+    await page.goto("/frontmatter.md");
+    await expect(page.locator("#content-area .markdown-body")).toBeVisible();
+    // Give the backlinks request time to land before asserting absence
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("#content-area .backlinks")).toHaveCount(0);
+  });
+
+  test("not shown in Code view, reappears in Preview", async ({ page }) => {
+    await page.goto("/hello.md");
+    await expect(page.locator("#content-area .backlinks")).toBeVisible();
+    await page.locator(".view-toggle button", { hasText: "Code" }).click();
+    await expect(page.locator("#content-area .source-code")).toBeVisible();
+    await expect(page.locator("#content-area .backlinks")).toHaveCount(0);
+    await page.locator(".view-toggle button", { hasText: "Preview" }).click();
+    await expect(page.locator("#content-area .backlinks")).toBeVisible();
+  });
+
+  test("backlinks from a previous note don't leak into the next one", async ({ page }) => {
+    await page.goto("/hello.md");
+    await expect(page.locator("#content-area .backlinks")).toBeVisible();
+    await page.locator(".tree-item .label", { hasText: "frontmatter.md" }).click();
+    await expect(page).toHaveURL(/\/frontmatter\.md$/);
+    await page.waitForLoadState("networkidle");
+    await expect(page.locator("#content-area .backlinks")).toHaveCount(0);
   });
 });
 
@@ -996,7 +1220,7 @@ test.describe("Binary file handling", () => {
     const content = page.locator("#content-area");
     await expect(content.locator(".binary-preview img")).toBeVisible();
     const src = await content.locator(".binary-preview img").getAttribute("src");
-    expect(src).toContain("/api/raw?path=pixel.png");
+    expect(src).toContain("/_raw/pixel.png");
     await expect(content.locator(".binary-download")).toBeVisible();
   });
 
@@ -1004,8 +1228,10 @@ test.describe("Binary file handling", () => {
     await page.goto("/");
     await page.locator(".tree-item .label", { hasText: "icon.svg" }).click();
     const content = page.locator("#content-area");
-    // Preview mode: shows inline SVG element
-    await expect(content.locator(".svg-preview svg")).toBeVisible();
+    // Preview mode: rendered as an <img>, so scripts and event handlers
+    // inside the SVG never run with the viewer's session.
+    await expect(content.locator(".svg-preview img")).toBeVisible();
+    await expect(content.locator(".svg-preview svg")).toHaveCount(0);
     // Toggle should be visible
     await expect(page.locator(".view-toggle")).toBeVisible();
     await expect(page.locator(".view-toggle button", { hasText: "Preview" })).toBeVisible();
@@ -1018,8 +1244,44 @@ test.describe("Binary file handling", () => {
 
     // Switch back to preview
     await page.locator(".view-toggle button", { hasText: "Preview" }).click();
-    await expect(content.locator(".svg-preview svg")).toBeVisible();
+    await expect(content.locator(".svg-preview img")).toBeVisible();
     await expect(content.locator(".source-code")).not.toBeVisible();
+  });
+
+  test("HTML shows rendered preview iframe with toggle to code view", async ({ page }) => {
+    await page.goto("/");
+    await page.locator(".tree-item .label", { hasText: "sample.html" }).click();
+    const content = page.locator("#content-area");
+    // Preview mode: rendered page inside a sandboxed iframe
+    await expect(content.locator("iframe.html-preview")).toBeVisible();
+    const frame = page.frameLocator("iframe.html-preview");
+    await expect(frame.locator("h1")).toHaveText("Hello from HTML");
+
+    // Switch to code view
+    await page.locator(".view-toggle button", { hasText: "Code" }).click();
+    await expect(content.locator(".source-code")).toBeVisible();
+    await expect(content.locator(".source-code")).toContainText("<h1>Hello from HTML</h1>");
+    await expect(content.locator("iframe.html-preview")).toHaveCount(0);
+
+    // Switch back to preview
+    await page.locator(".view-toggle button", { hasText: "Preview" }).click();
+    await expect(page.frameLocator("iframe.html-preview").locator("h1")).toHaveText("Hello from HTML");
+  });
+
+  test("HTML preview loads its own relative image and stylesheet", async ({ page }) => {
+    await page.goto("/site/index.html");
+    const iframe = page.locator("#content-area iframe.html-preview");
+    await expect(iframe).toHaveAttribute("src", "/_raw/site/index.html");
+    const frame = page.frameLocator("iframe.html-preview");
+    await expect(frame.locator("h1")).toHaveText("Site with relative assets");
+    // Relative img/dot.png resolves to /_raw/site/img/dot.png and loads.
+    await expect
+      .poll(() =>
+        frame.locator("#rel-img").evaluate((el: HTMLImageElement) => el.complete && el.naturalWidth > 0)
+      )
+      .toBe(true);
+    // Relative css/style.css applies.
+    await expect(frame.locator("h1")).toHaveCSS("color", "rgb(255, 0, 0)");
   });
 
   test("non-image binary shows 'Binary file not displayed' with download link", async ({ page }) => {
@@ -1030,7 +1292,7 @@ test.describe("Binary file handling", () => {
     await expect(content.locator("text=Binary file not displayed")).toBeVisible();
     await expect(content.locator(".binary-download")).toBeVisible();
     const href = await content.locator(".binary-download").getAttribute("href");
-    expect(href).toContain("/api/raw?path=tiny.bin");
+    expect(href).toContain("/_raw/tiny.bin");
   });
 });
 
@@ -1080,7 +1342,7 @@ test.describe("README below directory listing", () => {
 });
 
 test.describe("Markdown image rewriting", () => {
-  test("local image src is rewritten to /api/raw", async ({ page }) => {
+  test("local image src is rewritten to /_raw", async ({ page }) => {
     await page.goto("/images.md");
     const content = page.locator("#content-area .markdown-body");
     await expect(content).toBeVisible();
@@ -1089,13 +1351,13 @@ test.describe("Markdown image rewriting", () => {
     const relImg = content.locator('img[alt="pixel"]');
     await expect(relImg).toBeVisible();
     const relSrc = await relImg.getAttribute("src");
-    expect(relSrc).toContain("/api/raw?path=pixel.png");
+    expect(relSrc).toContain("/_raw/pixel.png");
 
     // Dot-relative image (./pixel.png) should also be rewritten
     const dotImg = content.locator('img[alt="pixel dot"]');
     await expect(dotImg).toBeVisible();
     const dotSrc = await dotImg.getAttribute("src");
-    expect(dotSrc).toContain("/api/raw?path=pixel.png");
+    expect(dotSrc).toContain("/_raw/pixel.png");
 
     // External image should NOT be rewritten
     const extImg = content.locator('img[alt="external"]');
@@ -1104,7 +1366,7 @@ test.describe("Markdown image rewriting", () => {
     expect(extSrc).toBe("https://example.com/logo.png");
   });
 
-  test("rewritten image actually loads via /api/raw", async ({ page }) => {
+  test("rewritten image actually loads via /_raw", async ({ page }) => {
     await page.goto("/images.md");
     const content = page.locator("#content-area .markdown-body");
     await expect(content).toBeVisible();
@@ -1611,5 +1873,144 @@ test.describe("Fold switch styling", () => {
     const s = await probe(page);
     expect(s.bg).toBe(s.expectBg);
     expect(s.border).toBe(s.expectBorder);
+  });
+});
+
+test.describe("PWA (Add to Home Screen)", () => {
+  test("manifest is linked and lists icons that load", async ({ page, request }) => {
+    await page.goto("/");
+    const href = await page.locator('link[rel="manifest"]').getAttribute("href");
+    expect(href).toBe("/api/manifest.webmanifest");
+
+    const res = await request.get(href!);
+    expect(res.ok()).toBeTruthy();
+    const manifest = await res.json();
+    expect(manifest.display).toBe("standalone");
+    expect(manifest.short_name).toBe("testdata");
+    for (const icon of manifest.icons) {
+      const iconRes = await request.get(icon.src);
+      expect(iconRes.ok()).toBeTruthy();
+      expect(iconRes.headers()["content-type"]).toBe("image/png");
+    }
+
+    const touchIcon = await page.locator('link[rel="apple-touch-icon"]').getAttribute("href");
+    expect((await request.get(touchIcon!)).ok()).toBeTruthy();
+  });
+
+  test("theme-color meta follows the light/dark toggle", async ({ page }) => {
+    await page.emulateMedia({ colorScheme: "light" });
+    await page.goto("/");
+    await page.evaluate(() => localStorage.removeItem("rv-theme"));
+    await page.reload();
+    const meta = page.locator('meta[name="theme-color"]');
+    await expect(meta).toHaveAttribute("content", "#ffffff");
+
+    await page.locator("#theme-toggle").click();
+    await expect(meta).toHaveAttribute("content", "#1e1e2e");
+
+    // Persisted dark theme is applied on load, before any toggle.
+    await page.reload();
+    await expect(meta).toHaveAttribute("content", "#1e1e2e");
+
+    await page.locator("#theme-toggle").click();
+    await expect(meta).toHaveAttribute("content", "#ffffff");
+  });
+
+  test("an unrelated user file is still routed to the SPA, not shadowed", async ({ page }) => {
+    await page.goto("/hello.md");
+    await expect(page.locator("#content-area")).toContainText("Hello");
+  });
+});
+
+test.describe("Desktop sidebar toggle", () => {
+  test("menu button collapses and expands the sidebar", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const sidebar = page.locator("#sidebar");
+    await expect(page.locator("#menu-toggle")).toBeVisible();
+    await page.locator("#menu-toggle").click();
+    await expect(sidebar).toHaveClass(/collapsed/);
+    await expect.poll(() => sidebar.evaluate((el) => el.getBoundingClientRect().width)).toBe(0);
+    await page.locator("#menu-toggle").click();
+    await expect(sidebar).not.toHaveClass(/collapsed/);
+    await expect.poll(() => sidebar.evaluate((el) => el.getBoundingClientRect().width)).toBeGreaterThan(100);
+  });
+
+  test("Cmd/Ctrl+Backslash toggles, works in inputs, and persists", async ({ page }) => {
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto("/");
+    const sidebar = page.locator("#sidebar");
+    await page.keyboard.press("Meta+Backslash");
+    await expect(sidebar).toHaveClass(/collapsed/);
+    await page.reload();
+    await expect(sidebar).toHaveClass(/collapsed/);
+    // Works while typing in the search input
+    await page.keyboard.press("t");
+    await expect(page.locator("#search-input")).toBeFocused();
+    await page.keyboard.press("Control+Backslash");
+    await expect(sidebar).not.toHaveClass(/collapsed/);
+    await page.reload();
+    await expect(sidebar).not.toHaveClass(/collapsed/);
+  });
+
+  test("shortcut opens the drawer on narrow screens", async ({ page }) => {
+    await page.setViewportSize({ width: 600, height: 800 });
+    await page.goto("/");
+    await expect(page.locator("#tree-container .tree-item").first()).toBeAttached();
+    await expect(page.locator(".dir-listing-row").first()).toBeAttached();
+    await page.keyboard.press("Control+Backslash");
+    await expect(page.locator("#sidebar")).toHaveClass(/open/);
+    await expect(page.locator("#sidebar")).not.toHaveClass(/collapsed/);
+  });
+});
+
+test.describe("Rendering safety", () => {
+  // Serve a crafted markdown file without touching the fixtures.
+  async function serveMarkdown(page, html: string) {
+    await page.route("**/api/file?path=evil.md", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ name: "evil.md", path: "evil.md", isMarkdown: true, content: html, rawContent: "" }),
+      }),
+    );
+  }
+
+  test("mermaid source is never re-inserted as HTML on theme change", async ({ page }) => {
+    await serveMarkdown(
+      page,
+      '<pre><code class="language-mermaid">graph TD\n  A--&gt;B\n%% &lt;img src=x onerror="window.__pwned=1"&gt;</code></pre>',
+    );
+    await page.goto("/evil.md");
+    await expect(page.locator("#content-area .mermaid")).toHaveCount(1);
+    await page.locator("#theme-toggle").click();
+    await page.emulateMedia({ colorScheme: "dark" });
+    await page.waitForTimeout(500);
+    expect(await page.evaluate(() => (window as any).__pwned)).toBeUndefined();
+    await expect(page.locator("#content-area .mermaid img")).toHaveCount(0);
+  });
+
+  test("files too large to render offer a download", async ({ page }) => {
+    await page.route("**/api/file?path=huge.log", (route) =>
+      route.fulfill({
+        contentType: "application/json",
+        body: JSON.stringify({ name: "huge.log", path: "huge.log", isTooLarge: true, size: 50 << 20 }),
+      }),
+    );
+    await page.goto("/huge.log");
+    await expect(page.locator("#content-area")).toContainText("Text file too large to preview");
+    await expect(page.locator("#content-area .binary-download")).toHaveAttribute("href", "/_raw/huge.log");
+  });
+
+  test("script URLs are stripped from rendered links", async ({ page }) => {
+    await serveMarkdown(
+      page,
+      '<p><a id="a1" href="javascript:window.__pwned=1">a</a> <a id="a2" href="java&#9;script:window.__pwned=2">b</a> ' +
+        '<a id="a3" href="VBScript:x">c</a> <a id="a4" href="data:text/html,x">d</a> <a id="ok" href="https://example.com/">ok</a></p>',
+    );
+    await page.goto("/evil.md");
+    await expect(page.locator("#content-area #ok")).toHaveAttribute("href", "https://example.com/");
+    for (const id of ["a1", "a2", "a3", "a4"]) {
+      await expect(page.locator(`#content-area #${id}`)).not.toHaveAttribute("href", /.*/);
+    }
   });
 });
